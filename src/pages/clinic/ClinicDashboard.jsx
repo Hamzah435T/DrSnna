@@ -1,3 +1,11 @@
-export default function ClinicDashboard() {
-    return <h1>Clinic Dashboard</h1>;
+import {Form} from "react-router";
+
+export default function ClinicDashboard() {return <div>
+    <h1>clinic Dashboard</h1>
+    <Form method="post" action={"/logout"}>
+        <button type="submit">
+            Logout
+        </button>
+    </Form>
+</div>;
 }
