@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import {useNavigate} from "react-router";
+import { Form, useNavigate } from "react-router";
 
 export default function Landing() {
     const navigate = useNavigate();
@@ -51,11 +51,11 @@ export default function Landing() {
 
                     {/* Search Bar */}
                     <div className="flex-1 max-w-xl relative">
-            <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </span>
+                        <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </span>
                         <input
                             type="text"
                             placeholder="Search dentists, clinics, or treatments"
@@ -65,7 +65,7 @@ export default function Landing() {
 
                     {/* Right Actions & Auth Buttons */}
                     <div className="flex items-center gap-3">
-                        {/* Login / Register Placeholder Buttons */}
+                        {/* Login / Register Buttons */}
                         <div className="hidden sm:flex items-center gap-2">
                             <button
                                 onClick={() => navigate('/login')}
@@ -81,13 +81,15 @@ export default function Landing() {
                             </button>
                         </div>
 
-                      {/*   Logout Button
-                        <button
-                            onClick={() => navigate('/login')}
-                            className="bg-red-600 text-white px-4 py-1.5 sm:px-5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm shadow-sm hover:bg-red-700 transition-colors"
-                        >
-                            Log out
-                        </button>*/}
+                        {/* Logout Button */}
+                        <Form method="post" action="/logout">
+                            <button
+                                type="submit"
+                                className="bg-red-600 text-white px-3.5 py-1.5 rounded-lg font-semibold text-xs shadow-sm hover:bg-red-700 transition-colors cursor-pointer"
+                            >
+                                Log out
+                            </button>
+                        </Form>
 
                         {/* User Avatar */}
                         <div className="w-9 h-9 rounded-xl bg-sky-700 text-white font-semibold text-xs flex items-center justify-center shadow-sm">
@@ -163,8 +165,8 @@ export default function Landing() {
                                                         key={tag}
                                                         className="px-2.5 py-0.5 rounded-md bg-sky-50 text-sky-700 text-xs font-medium border border-sky-100"
                                                     >
-                            {tag}
-                          </span>
+                                                        {tag}
+                                                    </span>
                                                 ))}
                                             </div>
                                             <div className="flex items-center gap-1.5 text-xs text-slate-500 pt-0.5">
@@ -192,9 +194,9 @@ export default function Landing() {
                 <aside className="space-y-5">
                     {/* Upcoming Appointment Card */}
                     <div className="bg-sky-600 text-white rounded-2xl p-5 shadow-sm space-y-4">
-            <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] tracking-wider uppercase font-semibold">
-              Upcoming
-            </span>
+                        <span className="inline-block px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] tracking-wider uppercase font-semibold">
+                            Upcoming
+                        </span>
                         <div>
                             <h3 className="font-bold text-base">Bright Smiles Dental Clinic</h3>
                             <p className="text-xs text-sky-100 mt-1">Thursday, Aug 21 • 10:30 AM • Routine cleaning</p>

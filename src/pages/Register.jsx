@@ -19,13 +19,15 @@ export default function Register() {
                 <div className="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-white/10 blur-xl pointer-events-none" />
                 <div className="absolute -bottom-20 -left-20 h-96 w-96 rounded-full bg-white/10 blur-xl pointer-events-none" />
 
-                {/* Logo */}
-                <div className="relative z-10 flex items-center gap-3">
+                <Link
+                    to="/"
+                    className="relative z-10 flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity w-fit"
+                >
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-600 shadow-md overflow-hidden">
                         <img src="logo.png" alt="logo" className="h-full w-full object-cover" />
                     </div>
                     <span className="text-xl font-bold tracking-tight">DrSnna</span>
-                </div>
+                </Link>
 
                 {/* Hero Text */}
                 <div className="relative z-10 max-w-md space-y-4">
