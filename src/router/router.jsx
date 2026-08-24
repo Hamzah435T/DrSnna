@@ -8,9 +8,9 @@ import {
     registerPatient,
     registerClinic, logout,
 } from "../api/authApi";
-import {clearAuth, getAuth, saveAuth} from "../auth/authStorage";
+import { clearAuth, getAuth, saveAuth } from "../auth/authStorage";
 import { getRoleRedirect } from "../auth/roleRedirect";
-import {requireGuest, requireRole} from "../auth/routeGuards.js";
+import { requireGuest, requireRole } from "../auth/routeGuards.js";
 import Login from "../pages/Login";
 import Register from "../pages/Register.jsx";
 import PatientDashboard from "../pages/patient/PatientDashboard.jsx";
@@ -128,6 +128,9 @@ export async function logoutAction() {
 }
 
 
+import PatientHomePage from "../pages/PatientHomePage.jsx";
+import ClinicDetailsPage from "../pages/ClinicDetailsPage.jsx";
+
 //  Don't touch
 export const router = createBrowserRouter([
     {
@@ -148,8 +151,15 @@ export const router = createBrowserRouter([
     },
     {
         path: "/patient",
-        element: <PatientDashboard />,
-        loader: () => requireRole("PATIENT"),
+        element: <PatientHomePage />,
+    },
+    {
+        path: "/clinics",
+        element: <PatientHomePage />,
+    },
+    {
+        path: "/clinics/:id",
+        element: <ClinicDetailsPage />,
     },
     {
         path: "/admin",
@@ -175,3 +185,4 @@ export const router = createBrowserRouter([
         action: logoutAction,
     },
 ]);
+
