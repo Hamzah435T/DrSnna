@@ -28,7 +28,7 @@ export default function Login() {
                     className="relative z-10 flex items-center gap-3 cursor-pointer hover:opacity-90 transition-opacity w-fit"
                 >
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-600 shadow-md overflow-hidden">
-                        <img src="logo.png" alt="logo" className="h-full w-full object-cover" />
+                        <img src="/logo.png" alt="logo" className="h-full w-full object-cover" />
                     </div>
                     <span className="text-xl font-bold tracking-tight">DrSnna</span>
                 </Link>
