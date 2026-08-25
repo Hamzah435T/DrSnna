@@ -1,6 +1,6 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
-import ClinicSidebar from '../../components/clinic/ClinicSidebar';
+import { Outlet } from 'react-router';
+import ClinicSidebar from '../../clinic/ClinicSidebar';
 
 export default function ClinicDashboard() {
     return (
