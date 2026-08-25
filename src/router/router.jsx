@@ -18,7 +18,7 @@ import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
 import ClinicDashboard from "../pages/clinic/ClinicDashboard.jsx";
 import DoctorDashboard from "../pages/doctor/DoctorDashboard.jsx";
 import Unauthorized from "../pages/Unauthorized.jsx";
-import Landing from "../pages/Landing.jsx";
+
 import ClinicDetails from "../pages/patient/ClinicDetails.jsx";
 
 async function loginAction({ request }) {
@@ -130,13 +130,12 @@ export async function logoutAction() {
 
 
 import PatientHomePage from "../pages/PatientHomePage.jsx";
-import ClinicDetailsPage from "../pages/ClinicDetailsPage.jsx";
 
 //  Don't touch
 export const router = createBrowserRouter([
     {
         path: "/",
-        element: <Landing />,
+        element: <PatientHomePage />,
     },
     {
         path: "/login",
@@ -153,14 +152,6 @@ export const router = createBrowserRouter([
     {
         path: "/patient",
         element: <PatientHomePage />,
-    },
-    {
-        path: "/clinics",
-        element: <PatientHomePage />,
-    },
-    {
-        path: "/clinics/:id",
-        element: <ClinicDetailsPage />,
     },
     {
         path: "/admin",
@@ -180,10 +171,6 @@ export const router = createBrowserRouter([
     {
         path: "/unauthorized",
         element: <Unauthorized />,
-    },
-    {
-        path: "/clinic/:id",
-        element: <ClinicDetails />,
     },
     {
         path: "/clinic-details",

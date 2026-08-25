@@ -212,8 +212,8 @@ export default function PatientHomePage() {
     });
   }, [debouncedSearch, selectedCity, selectedSpecialty, availability, selectedStars, maxFee, sortBy]);
 
-  const handleClinicClick = (clinicId) => {
-    navigate(`/clinics/${clinicId}`);
+  const handleClinicClick = () => {
+    navigate('/clinic-details');
   };
 
   const handleStarClick = (starCount) => {
@@ -449,7 +449,7 @@ export default function PatientHomePage() {
             {filteredClinics.map((clinic, cIdx) => (
               <article
                 key={clinic.clinic_id}
-                onClick={() => handleClinicClick(clinic.clinic_id)}
+                onClick={() => handleClinicClick()}
                 className="group bg-white/70 backdrop-blur-md rounded-2xl border border-white/90 shadow-xs hover:shadow-xl hover:shadow-blue-500/10 hover:border-blue-200/90 hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden cursor-pointer backdrop-saturate-150"
               >
                 {/* LCP Priority High Performance Image */}
@@ -544,7 +544,7 @@ export default function PatientHomePage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleClinicClick(clinic.clinic_id);
+                        handleClinicClick();
                       }}
                       className="py-1.5 px-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-semibold rounded-lg text-xs flex items-center gap-1 shadow-2xs transition-all cursor-pointer"
                     >
