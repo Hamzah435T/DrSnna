@@ -1,7 +1,7 @@
 import {
     createBrowserRouter,
     redirect,
-} from "react-router-dom";
+} from "react-router";
 
 import {
     login,
@@ -17,6 +17,7 @@ import PatientHomePage from "../pages/PatientHomePage.jsx";
 import PatientDashboard from "../pages/patient/PatientDashboard.jsx";
 import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
 import ClinicDashboard from "../pages/clinic/ClinicDashboard.jsx";
+import ClinicProfileSettings from "../pages/clinic/ClinicProfileSettings.jsx";
 import ClinicOverview from "../pages/clinic/ClinicOverview";
 import ClinicSettings from "../pages/clinic/ClinicSettings";
 import ClinicAppointments from "../pages/clinic/components/ClinicAppointments.jsx";
@@ -132,10 +133,12 @@ export async function logoutAction() {
     return redirect("/login");
 }
 
+
+//  Don't touch
 export const router = createBrowserRouter([
     {
         path: "/",
-        element: <PatientHomePage />,
+        element: <Landing />,
     },
     {
         path: "/login",
@@ -162,25 +165,7 @@ export const router = createBrowserRouter([
     {
         path: "/clinic",
         element: <ClinicDashboard />,
-        // loader: () => requireRole("CLINIC"),
-        children: [
-            {
-                index: true,
-                element: <ClinicOverview />,
-            },
-            {
-                path: "doctors",
-                element: <ClinicDoctors />,
-            },
-            {
-                path: "appointments",
-                element: <ClinicAppointments />,
-            },
-            {
-                path: "settings",
-                element: <ClinicSettings />,
-            },
-        ],
+        loader: () => requireRole("CLINIC"),
     },
     {
         path: "/doctor",
@@ -192,16 +177,7 @@ export const router = createBrowserRouter([
         element: <Unauthorized />,
     },
     {
-        path: "/clinic-details",
-        element: <ClinicDetails />,
-    },
-    {
-        path: "/clinic-details/:id",
-        element: <ClinicDetails />,
-    },
-    {
         path: "/logout",
         action: logoutAction,
     },
 ]);
-
