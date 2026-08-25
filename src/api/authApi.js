@@ -89,7 +89,7 @@ export async function registerClinic({
     const data = await response.json();
 
     if (!response.ok) {
-        throw new Error(data.message || "Clinic registration failed");
+        throw new Error(data.message || "clinic registration failed");
     }
 
     return data;

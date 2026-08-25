@@ -1,16 +1,17 @@
-import { Outlet } from "react-router";
-import ClinicLayout from "./components/ClinicLayout";
+import React from 'react';
+import { Outlet } from 'react-router';
+import ClinicSidebar from '../../clinic/ClinicSidebar';
 
-/**
- * ClinicDashboard - root wrapper for the /clinic route.
- *
- * Uses ClinicLayout for the sidebar shell and renders
- * the active sub-page in the main content area via Outlet.
- */
 export default function ClinicDashboard() {
     return (
-        <ClinicLayout>
-            <Outlet />
-        </ClinicLayout>
+        <div className="flex bg-gray-50 min-h-screen">
+            {/* Sidebar Navigation */}
+            <ClinicSidebar />
+
+            {/* Main Content Area */}
+            <main className="flex-1 p-8 overflow-y-auto">
+                <Outlet />
+            </main>
+        </div>
     );
 }

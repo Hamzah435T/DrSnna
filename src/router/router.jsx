@@ -1,23 +1,21 @@
 import {
     createBrowserRouter,
     redirect,
-} from "react-router";
+} from "react-router-dom";
 
 import {
     login,
     registerPatient,
     registerClinic, logout,
 } from "../api/authApi";
-import { clearAuth, getAuth, saveAuth } from "../auth/authStorage";
+import {clearAuth, getAuth, saveAuth} from "../auth/authStorage";
 import { getRoleRedirect } from "../auth/roleRedirect";
-import { requireGuest, requireRole } from "../auth/routeGuards.js";
+import {requireGuest, requireRole} from "../auth/routeGuards.js";
 import Login from "../pages/Login";
 import Register from "../pages/Register.jsx";
 import PatientDashboard from "../pages/patient/PatientDashboard.jsx";
 import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
 import ClinicDashboard from "../pages/clinic/ClinicDashboard.jsx";
-import ClinicAppointments from "../pages/clinic/components/ClinicAppointments.jsx";
-import ClinicDoctors from "../pages/clinic/components/ClinicDoctors.jsx";
 import DoctorDashboard from "../pages/doctor/DoctorDashboard.jsx";
 import Unauthorized from "../pages/Unauthorized.jsx";
 
@@ -131,13 +129,11 @@ export async function logoutAction() {
 }
 
 
-import PatientHomePage from "../pages/PatientHomePage.jsx";
-
 //  Don't touch
 export const router = createBrowserRouter([
     {
         path: "/",
-        element: <PatientHomePage />,
+        element: <Landing />,
     },
     {
         path: "/login",
@@ -153,7 +149,8 @@ export const router = createBrowserRouter([
     },
     {
         path: "/patient",
-        element: <PatientHomePage />,
+        element: <PatientDashboard />,
+        loader: () => requireRole("PATIENT"),
     },
     {
         path: "/admin",
@@ -163,23 +160,7 @@ export const router = createBrowserRouter([
     {
         path: "/clinic",
         element: <ClinicDashboard />,
-        children: [
-            {
-                index: true,
-                loader: () => redirect("/clinic/appointments"),
-            },
-            {
-                path: "appointments",
-                element: <ClinicAppointments />,
-            },
-            {
-                path: "doctors",
-                element: <ClinicDoctors />,
-            },
-            // other routes can be added here
-        ]
-        // TODO: Re-enable auth guard when backend is ready
-        // loader: () => requireRole("CLINIC"),
+        loader: () => requireRole("CLINIC"),
     },
     {
         path: "/doctor",
@@ -191,16 +172,7 @@ export const router = createBrowserRouter([
         element: <Unauthorized />,
     },
     {
-        path: "/clinic-details",
-        element: <ClinicDetails />,
-    },
-    {
-        path: "/clinic-details/:id",
-        element: <ClinicDetails />,
-    },
-    {
         path: "/logout",
         action: logoutAction,
     },
 ]);
-
