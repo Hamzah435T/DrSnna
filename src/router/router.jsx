@@ -131,28 +131,7 @@ export async function logoutAction() {
 }
 
 
-//  Don't touch
 export const router = createBrowserRouter([
-    {
-        path: "/clinic-dashboard",
-        element: (
-            <ProtectedRoute allowedRoles={['CLINIC_ADMIN']}>
-                <ClinicDashboard />
-            </ProtectedRoute>
-        ),
-        // --- أضف السطور التالية هنا (الخاصة بالخطوة الخامسة) ---
-        children: [
-            {
-                index: true,
-                element: <ClinicOverview />
-            },
-            {
-                path: "settings",
-                element: <ClinicSettings />
-            },
-        ],
-
-    },
     {
         path: "/",
         element: <Landing />,
@@ -182,7 +161,17 @@ export const router = createBrowserRouter([
     {
         path: "/clinic",
         element: <ClinicDashboard />,
-        loader: () => requireRole("CLINIC"),
+        // loader: () => requireRole("CLINIC"), // TODO: re-enable auth guard
+        children: [
+            {
+                index: true,
+                element: <ClinicOverview />,
+            },
+            {
+                path: "settings",
+                element: <ClinicSettings />,
+            },
+        ],
     },
     {
         path: "/doctor",

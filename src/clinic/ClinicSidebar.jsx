@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router';
 import { LayoutDashboard, UserRound, Calendar, Settings, HelpCircle, LogOut } from 'lucide-react';
-import { clearAuth } from '../../auth/authStorage';
+import { clearAuth } from '../auth/authStorage';
 
 export default function ClinicSidebar() {
     const navigate = useNavigate();
@@ -12,10 +12,10 @@ export default function ClinicSidebar() {
     };
 
     const navItems = [
-        { name: 'Dashboard', path: '/clinic-dashboard', icon: LayoutDashboard, end: true },
-        { name: 'Doctors', path: '/clinic-dashboard/doctors', icon: UserRound },
-        { name: 'Appointments', path: '/clinic-dashboard/appointments', icon: Calendar },
-        { name: 'Settings', path: '/clinic-dashboard/settings', icon: Settings },
+        { name: 'Dashboard', path: '/clinic', icon: LayoutDashboard, end: true },
+        { name: 'Doctors', path: '/clinic/doctors', icon: UserRound },
+        { name: 'Appointments', path: '/clinic/appointments', icon: Calendar },
+        { name: 'Settings', path: '/clinic/settings', icon: Settings },
     ];
 
     return (
@@ -42,10 +42,9 @@ export default function ClinicSidebar() {
                                 to={item.path}
                                 end={item.end}
                                 className={({ isActive }) =>
-                                    `flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-colors ${
-                                        isActive
-                                            ? 'bg-blue-600 text-white shadow-sm'
-                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                    `flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-colors ${isActive
+                                        ? 'bg-blue-600 text-white shadow-sm'
+                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                     }`
                                 }
                             >
