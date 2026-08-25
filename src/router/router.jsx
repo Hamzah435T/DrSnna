@@ -16,6 +16,7 @@ import Register from "../pages/Register.jsx";
 import PatientDashboard from "../pages/patient/PatientDashboard.jsx";
 import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
 import ClinicDashboard from "../pages/clinic/ClinicDashboard.jsx";
+import ClinicProfileSettings from "../pages/clinic/ClinicProfileSettings.jsx";
 import DoctorDashboard from "../pages/doctor/DoctorDashboard.jsx";
 import Unauthorized from "../pages/Unauthorized.jsx";
 import Landing from "../pages/Landing.jsx";
@@ -159,6 +160,11 @@ export const router = createBrowserRouter([
     {
         path: "/clinic",
         element: <ClinicDashboard />,
+        loader: () => requireRole("CLINIC"),
+    },
+    {
+        path: "/clinic/settings",
+        element: <ClinicProfileSettings />,
         loader: () => requireRole("CLINIC"),
     },
     {
