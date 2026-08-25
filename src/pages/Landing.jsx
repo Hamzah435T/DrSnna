@@ -179,7 +179,7 @@ export default function Landing() {
                                     </div>
 
                                     <button
-                                        onClick={() => navigate('/register')}
+                                        onClick={() => navigate(`/clinic/${clinic.id}`)}
                                         className="self-end sm:self-center px-4 py-2 rounded-xl border border-sky-600 text-sky-600 font-medium text-xs sm:text-sm hover:bg-sky-50 transition"
                                     >
                                         View availability

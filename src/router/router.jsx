@@ -19,6 +19,7 @@ import ClinicDashboard from "../pages/clinic/ClinicDashboard.jsx";
 import DoctorDashboard from "../pages/doctor/DoctorDashboard.jsx";
 import Unauthorized from "../pages/Unauthorized.jsx";
 import Landing from "../pages/Landing.jsx";
+import ClinicDetails from "../pages/patient/ClinicDetails.jsx";
 
 async function loginAction({ request }) {
     const formData = await request.formData();
@@ -179,6 +180,18 @@ export const router = createBrowserRouter([
     {
         path: "/unauthorized",
         element: <Unauthorized />,
+    },
+    {
+        path: "/clinic/:id",
+        element: <ClinicDetails />,
+    },
+    {
+        path: "/clinic-details",
+        element: <ClinicDetails />,
+    },
+    {
+        path: "/clinic-details/:id",
+        element: <ClinicDetails />,
     },
     {
         path: "/logout",
