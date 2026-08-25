@@ -1,3 +1,5 @@
+import ClinicOverview from "../pages/clinic/ClinicOverview";
+import ClinicSettings from "../pages/clinic/ClinicSettings";
 import {
     createBrowserRouter,
     redirect,
@@ -19,6 +21,7 @@ import ClinicDashboard from "../pages/clinic/ClinicDashboard.jsx";
 import DoctorDashboard from "../pages/doctor/DoctorDashboard.jsx";
 import Unauthorized from "../pages/Unauthorized.jsx";
 import Landing from "../pages/Landing.jsx";
+
 
 async function loginAction({ request }) {
     const formData = await request.formData();
@@ -130,6 +133,26 @@ export async function logoutAction() {
 
 //  Don't touch
 export const router = createBrowserRouter([
+    {
+        path: "/clinic-dashboard",
+        element: (
+            <ProtectedRoute allowedRoles={['CLINIC_ADMIN']}>
+                <ClinicDashboard />
+            </ProtectedRoute>
+        ),
+        // --- أضف السطور التالية هنا (الخاصة بالخطوة الخامسة) ---
+        children: [
+            {
+                index: true,
+                element: <ClinicOverview />
+            },
+            {
+                path: "settings",
+                element: <ClinicSettings />
+            },
+        ],
+
+    },
     {
         path: "/",
         element: <Landing />,

@@ -62,7 +62,7 @@ export default function Register() {
                         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Register</h1>
                     </div>
 
-                    {/* أزرار التبديل Patient / Clinic */}
+                    {/* أزرار التبديل Patient / clinic */}
                     <div className="flex rounded-lg bg-slate-100 p-1 text-xs font-semibold text-slate-600">
                         <button
                             type="button"
