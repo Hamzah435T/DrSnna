@@ -273,99 +273,8 @@ export default function ClinicProfileSettings() {
     }
 
     return (
-        <div className="min-h-screen bg-[#f7f8fa] text-slate-950">
-            <div className="flex min-h-screen">
-                {/* SIDEBAR */}
-                <aside className="fixed left-0 top-0 z-20 flex h-screen w-[182px] flex-col border-r border-slate-300 bg-white">
-                    {/* Logo / Brand */}
-                    <div className="flex h-[86px] items-center gap-2 px-4">
-                        <div className="flex h-[42px] w-[30px] items-center justify-center rounded-md border border-slate-200 bg-slate-50">
-                            <div className="text-[17px] text-blue-700">✦</div>
-                        </div>
-
-                        <div>
-                            <div className="text-[17px] font-medium leading-5 text-blue-800">
-                                Dr.Sna Admin
-                            </div>
-                            <div className="mt-0.5 text-[9px] tracking-wide text-slate-600">
-                                Clinical Management
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* New Appointment */}
-                    <div className="px-3">
-                        <button
-                            type="button"
-                            className="flex h-[29px] w-full items-center justify-center gap-2 rounded-md bg-blue-800 text-[11px] font-semibold text-white shadow-sm transition hover:bg-blue-900"
-                        >
-                            <PlusIcon />
-                            Add New Appointment
-                        </button>
-                    </div>
-
-                    {/* Navigation */}
-                    <nav className="mt-4 px-3">
-                        <Link
-                            to="/clinic"
-                            className="mb-1 flex h-[32px] items-center gap-3 rounded-md px-2.5 text-[11px] text-slate-700 transition hover:bg-slate-100"
-                        >
-                            <DashboardIcon />
-                            Dashboard
-                        </Link>
-
-                        <Link
-                            to="/clinic"
-                            className="mb-1 flex h-[32px] items-center gap-3 rounded-md px-2.5 text-[11px] text-slate-700 transition hover:bg-slate-100"
-                        >
-                            <BriefcaseIcon />
-                            Doctors
-                        </Link>
-
-                        <Link
-                            to="/clinic"
-                            className="mb-1 flex h-[32px] items-center gap-3 rounded-md px-2.5 text-[11px] text-slate-700 transition hover:bg-slate-100"
-                        >
-                            <CalendarIcon />
-                            Appointments
-                        </Link>
-
-                        <Link
-                            to="/clinic/settings"
-                            className="flex h-[32px] items-center gap-3 rounded-md bg-blue-700 px-2.5 text-[11px] font-medium text-white shadow-sm"
-                        >
-                            <SettingsIcon />
-                            Settings
-                        </Link>
-                    </nav>
-
-                    {/* Bottom Navigation */}
-                    <div className="mt-auto px-3 pb-4">
-                        <div className="mb-3 border-t border-slate-300" />
-
-                        <button
-                            type="button"
-                            className="mb-1 flex h-[30px] w-full items-center gap-3 rounded-md px-2.5 text-[10px] text-slate-700 hover:bg-slate-100"
-                        >
-                            <HelpIcon />
-                            Support
-                        </button>
-
-                        <Form method="post" action="/logout">
-                            <button
-                                type="submit"
-                                className="flex h-[30px] w-full items-center gap-3 rounded-md px-2.5 text-[10px] text-slate-700 hover:bg-slate-100"
-                            >
-                                <LogoutIcon />
-                                Logout
-                            </button>
-                        </Form>
-                    </div>
-                </aside>
-
-                {/* MAIN CONTENT */}
-                <main className="ml-[182px] min-h-screen w-[calc(100%-182px)] px-7 py-7">
-                    <div className="mx-auto max-w-[1060px]">
+        <div className="bg-[#f7f8fa] text-slate-950 min-h-[calc(100vh-64px)] w-full">
+            <div className="mx-auto max-w-[1060px]">
                         {/* Header */}
                         <div className="mb-6 flex items-start justify-between border-b border-slate-300 pb-4">
                             <div>
@@ -681,8 +590,6 @@ export default function ClinicProfileSettings() {
                             )}
                         </form>
                     </div>
-                </main>
-            </div>
         </div>
     );
 }
