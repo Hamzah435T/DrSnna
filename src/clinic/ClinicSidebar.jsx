@@ -54,6 +54,9 @@ export default function ClinicSidebar() {
                         );
                     })}
                 </nav>
+
+                {/* Portal target for page-specific sidebar content */}
+                <div id="sidebar-page-content" className="mt-2"></div>
             </div>
 
             {/* Footer Links */}

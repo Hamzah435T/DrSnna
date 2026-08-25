@@ -23,7 +23,7 @@ export default function ClinicAppointments() {
         { id: 6, doctorId: "dr_smith", doctorName: "Dr. Smith", type: "", date: "2023-10-24", startTime: "12:00", endTime: "13:00", dayIndex: 2, timeIndex: 12, color: "bg-emerald-500" },
         { id: 7, doctorId: "dr_adams", doctorName: "Dr. Adams", type: "Con...", date: "2023-10-23", startTime: "13:00", endTime: "14:00", dayIndex: 1, timeIndex: 13, color: "bg-blue-500" },
         { id: 8, doctorId: "dr_smith", doctorName: "Dr. Smith", type: "Chec...", date: "2023-10-25", startTime: "13:00", endTime: "14:00", dayIndex: 3, timeIndex: 13, color: "bg-emerald-500" },
-        
+
         // 9 New Appointments
         { id: 9, doctorId: "dr_lee", doctorName: "Dr. Lee", type: "Exam", date: "2023-10-26", startTime: "10:00", endTime: "11:00", dayIndex: 4, timeIndex: 10, color: "bg-purple-500" },
         { id: 10, doctorId: "dr_smith", doctorName: "Dr. Smith", type: "Consult", date: "2023-10-26", startTime: "11:00", endTime: "12:00", dayIndex: 4, timeIndex: 11, color: "bg-emerald-500" },
@@ -34,7 +34,7 @@ export default function ClinicAppointments() {
         { id: 15, doctorId: "dr_lee", doctorName: "Dr. Lee", type: "Exam", date: "2023-10-24", startTime: "14:00", endTime: "15:00", dayIndex: 2, timeIndex: 14, color: "bg-purple-500" },
         { id: 16, doctorId: "dr_smith", doctorName: "Dr. Smith", type: "Consult", date: "2023-10-25", startTime: "15:00", endTime: "16:00", dayIndex: 3, timeIndex: 15, color: "bg-emerald-500" },
         { id: 17, doctorId: "dr_adams", doctorName: "Dr. Adams", type: "Checkup", date: "2023-10-26", startTime: "16:00", endTime: "17:00", dayIndex: 4, timeIndex: 16, color: "bg-blue-500" },
-        
+
         // Add 2 more appointments to the same cell as id:4 (date: "2023-10-23", timeIndex: 10)
         { id: 18, doctorId: "dr_smith", doctorName: "Dr. Smith", type: "Checkup", date: "2023-10-23", startTime: "10:00", endTime: "11:00", dayIndex: 1, timeIndex: 10, color: "bg-emerald-500" },
         { id: 19, doctorId: "dr_lee", doctorName: "Dr. Lee", type: "Consult", date: "2023-10-23", startTime: "10:00", endTime: "11:00", dayIndex: 1, timeIndex: 10, color: "bg-purple-500" },
@@ -47,20 +47,15 @@ export default function ClinicAppointments() {
         }
     };
 
-    const [sidebarPortalNode, setSidebarPortalNode] = useState(null);
-    useEffect(() => {
-        setSidebarPortalNode(document.getElementById("sidebar-bottom-portal"));
-    }, []);
-
     // ── Calendar Configuration ───────────────────────────────────────────────
     const days = Array.from({ length: 7 }).map((_, i) => {
         const date = new Date(currentWeekStart);
         date.setDate(date.getDate() + i);
-        
+
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const dayNum = String(date.getDate()).padStart(2, '0');
-        
+
         return {
             name: date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase(),
             date: date.getDate(),
@@ -85,10 +80,11 @@ export default function ClinicAppointments() {
     }
 
     const scrollContainerRef = useRef(null);
+    const hasScrolledRef = useRef(false);
 
-    // Auto-scroll to earliest appointment in the current week
+    // Auto-scroll to earliest appointment on mount
     useEffect(() => {
-        if (!scrollContainerRef.current) return;
+        if (!scrollContainerRef.current || hasScrolledRef.current) return;
 
         const currentWeekDateStrings = days.map(d => d.dateString);
         const currentWeekApps = visibleAppointments.filter(app => currentWeekDateStrings.includes(app.date));
@@ -100,58 +96,68 @@ export default function ClinicAppointments() {
 
         // 100px per row. Scroll with 20px padding
         const scrollPos = Math.max(0, earliestTimeIndex * 100 - 20);
-        
-        // Use a small timeout to allow grid rendering
+
         setTimeout(() => {
             if (scrollContainerRef.current) {
                 scrollContainerRef.current.scrollTo({ top: scrollPos, behavior: 'smooth' });
+                hasScrolledRef.current = true;
             }
-        }, 50);
+        }, 100);
+    });
+
+    // Re-scroll when week changes
+    useEffect(() => {
+        hasScrolledRef.current = false;
     }, [currentWeekStart, doctorFilters]);
 
-    const sidebarUI = (
-        <div className="flex flex-col gap-5 mt-4 mb-2">
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-2 px-1">
-                <button 
-                    onClick={() => setIsNewAppointmentOpen(true)} 
-                    className="w-full bg-blue-800 text-white rounded-full py-2.5 px-2 flex items-center justify-center gap-1.5 font-semibold shadow-md cursor-pointer hover:bg-blue-700 transition-colors text-[13px] whitespace-nowrap"
+    // ── Sidebar Portal ──────────────────────────────────────────────────────
+    const [portalNode, setPortalNode] = useState(null);
+    useEffect(() => {
+        const node = document.getElementById("sidebar-page-content");
+        if (node) setPortalNode(node);
+    }, []);
+
+    const sidebarContent = (
+        <div className="flex flex-col gap-4 mt-22">
+            <div className="flex flex-col gap-2">
+                <button
+                    onClick={() => setIsNewAppointmentOpen(true)}
+                    className="w-full bg-blue-800 text-white rounded-full py-2.5 px-4 flex items-center justify-center gap-1.5 font-semibold shadow-md cursor-pointer hover:bg-blue-700 transition-colors text-[13px]"
                 >
                     <span className="text-lg leading-none mb-0.5">+</span> New Appointment
                 </button>
-                <button 
-                    onClick={handleDelete} 
-                    className={`w-full rounded-full py-2.5 px-2 flex items-center justify-center gap-1.5 font-semibold transition-all text-[13px] whitespace-nowrap ${
-                        selectedAppointmentId 
-                            ? 'bg-red-500 text-white shadow-md hover:bg-red-600 cursor-pointer' 
-                            : 'bg-gray-200 text-gray-500 cursor-not-allowed opacity-70'
-                    }`}
+                <button
+                    onClick={handleDelete}
+                    className={`w-full rounded-full py-2.5 px-4 flex items-center justify-center gap-1.5 font-semibold transition-all text-[13px] ${selectedAppointmentId
+                        ? 'bg-red-500 text-white shadow-md hover:bg-red-600 cursor-pointer'
+                        : 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                        }`}
                 >
                     <TrashIcon className="w-4 h-4" /> Delete Selected
                 </button>
             </div>
 
-            {/* Schedule View */}
-            <div>
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 px-2">Schedule View</h3>
+            {/* Schedule View - Doctor Toggles */}
+            <div className="mt-2">
+                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">Schedule View</h3>
                 <div className="flex flex-col gap-1.5">
-                    <DoctorToggle 
-                        name="Dr. A. Smith" 
-                        color="bg-emerald-500" 
-                        checked={doctorFilters["dr_smith"]} 
-                        onChange={(v) => setDoctorFilters(f => ({...f, "dr_smith": v}))} 
+                    <DoctorToggle
+                        name="Dr. A. Smith"
+                        color="bg-emerald-500"
+                        checked={doctorFilters["dr_smith"]}
+                        onChange={(v) => setDoctorFilters(f => ({ ...f, "dr_smith": v }))}
                     />
-                    <DoctorToggle 
-                        name="Dr. J. Adams" 
-                        color="bg-blue-500" 
-                        checked={doctorFilters["dr_adams"]} 
-                        onChange={(v) => setDoctorFilters(f => ({...f, "dr_adams": v}))} 
+                    <DoctorToggle
+                        name="Dr. J. Adams"
+                        color="bg-blue-500"
+                        checked={doctorFilters["dr_adams"]}
+                        onChange={(v) => setDoctorFilters(f => ({ ...f, "dr_adams": v }))}
                     />
-                    <DoctorToggle 
-                        name="Dr. K. Lee" 
-                        color="bg-purple-500" 
-                        checked={doctorFilters["dr_lee"]} 
-                        onChange={(v) => setDoctorFilters(f => ({...f, "dr_lee": v}))} 
+                    <DoctorToggle
+                        name="Dr. K. Lee"
+                        color="bg-purple-500"
+                        checked={doctorFilters["dr_lee"]}
+                        onChange={(v) => setDoctorFilters(f => ({ ...f, "dr_lee": v }))}
                     />
                 </div>
             </div>
@@ -159,8 +165,9 @@ export default function ClinicAppointments() {
     );
 
     return (
-        <div className="flex flex-col h-full min-h-0 bg-white relative">
-            {sidebarPortalNode && createPortal(sidebarUI, sidebarPortalNode)}
+        <div className="flex flex-col h-[calc(100vh-64px)] min-h-0 bg-white rounded-xl shadow-sm relative">
+            {/* Portal sidebar content */}
+            {portalNode && createPortal(sidebarContent, portalNode)}
 
             {/* Header: Month & Year */}
             <div className="flex items-center gap-4 px-6 py-4 border-b border-gray-100">
@@ -374,11 +381,11 @@ function DoctorToggle({ name, color, checked, onChange }) {
                 <span className={`w-2.5 h-2.5 rounded-full ${color}`}></span>
                 <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">{name}</span>
             </div>
-            <input 
-                type="checkbox" 
-                className="hidden" 
-                checked={checked} 
-                onChange={(e) => onChange(e.target.checked)} 
+            <input
+                type="checkbox"
+                className="hidden"
+                checked={checked}
+                onChange={(e) => onChange(e.target.checked)}
             />
             <div className={`w-9 h-5 rounded-full relative transition-colors flex items-center ${checked ? color : 'bg-gray-200'}`}>
                 <div className={`absolute left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow-sm ${checked ? 'translate-x-[16px]' : 'translate-x-0'}`}></div>
