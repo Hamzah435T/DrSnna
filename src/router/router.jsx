@@ -159,7 +159,8 @@ export const router = createBrowserRouter([
     {
         path: "/clinic",
         element: <ClinicDashboard />,
-        loader: () => requireRole("CLINIC"),
+        // TODO: Re-enable auth guard when backend is ready
+        // loader: () => requireRole("CLINIC"),
     },
     {
         path: "/doctor",
