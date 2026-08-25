@@ -8,9 +8,10 @@ import { Form } from "react-router";
  * ─────
  * @param {string}       activePage   – key of the currently-active sidebar item
  * @param {function}     onNavigate   – (pageKey) => void  (wired up later when real routing lands)
- * @param {React.Node}   children     – main-area content
+ * @param {React.Node}   sidebarTopContent  - extra content injected between brand and nav
+ * @param {React.Node}   sidebarBottomContent - extra content injected below nav
  */
-export default function ClinicLayout({ activePage = "doctors", onNavigate, children }) {
+export default function ClinicLayout({ activePage = "doctors", onNavigate, children, sidebarTopContent, sidebarBottomContent }) {
     const navItems = [
         { key: "dashboard",    label: "Dashboard",    icon: DashboardIcon },
         { key: "doctors",      label: "Doctors",      icon: DoctorsIcon },
@@ -33,6 +34,12 @@ export default function ClinicLayout({ activePage = "doctors", onNavigate, child
                         <p className="text-[11px] text-blue-500 leading-tight">Clinical Management</p>
                     </div>
                 </div>
+
+                {sidebarTopContent && (
+                    <div className="px-3 mb-2">
+                        {sidebarTopContent}
+                    </div>
+                )}
 
                 {/* Navigation links */}
                 <nav className="flex-1 px-3 mt-2 space-y-1">
@@ -57,6 +64,12 @@ export default function ClinicLayout({ activePage = "doctors", onNavigate, child
                     })}
                 </nav>
 
+                {sidebarBottomContent && (
+                    <div className="px-3 mt-4 mb-2">
+                        {sidebarBottomContent}
+                    </div>
+                )}
+
                 {/* Bottom actions */}
                 <div className="px-3 pb-6 space-y-1 border-t border-gray-100 pt-4 mt-auto">
                     <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer">
@@ -76,7 +89,7 @@ export default function ClinicLayout({ activePage = "doctors", onNavigate, child
             </aside>
 
             {/* ─── Main content ─── */}
-            <main className="flex-1 overflow-y-auto">
+            <main className="flex-1 overflow-y-auto flex flex-col relative">
                 {children}
             </main>
         </div>
