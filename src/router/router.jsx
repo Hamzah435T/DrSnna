@@ -16,6 +16,8 @@ import Register from "../pages/Register.jsx";
 import PatientDashboard from "../pages/patient/PatientDashboard.jsx";
 import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
 import ClinicDashboard from "../pages/clinic/ClinicDashboard.jsx";
+import ClinicAppointments from "../pages/clinic/components/ClinicAppointments.jsx";
+import ClinicDoctors from "../pages/clinic/components/ClinicDoctors.jsx";
 import DoctorDashboard from "../pages/doctor/DoctorDashboard.jsx";
 import Unauthorized from "../pages/Unauthorized.jsx";
 
@@ -161,6 +163,21 @@ export const router = createBrowserRouter([
     {
         path: "/clinic",
         element: <ClinicDashboard />,
+        children: [
+            {
+                index: true,
+                loader: () => redirect("/clinic/appointments"),
+            },
+            {
+                path: "appointments",
+                element: <ClinicAppointments />,
+            },
+            {
+                path: "doctors",
+                element: <ClinicDoctors />,
+            },
+            // other routes can be added here
+        ]
         // TODO: Re-enable auth guard when backend is ready
         // loader: () => requireRole("CLINIC"),
     },

@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Form } from "react-router";
+import { Form, NavLink } from "react-router";
 
 /**
  * ClinicLayout – shared sidebar + content shell for every clinic page.
@@ -11,7 +10,7 @@ import { Form } from "react-router";
  * @param {React.Node}   sidebarTopContent  - extra content injected between brand and nav
  * @param {React.Node}   sidebarBottomContent - extra content injected below nav
  */
-export default function ClinicLayout({ activePage = "doctors", onNavigate, children, sidebarTopContent, sidebarBottomContent }) {
+export default function ClinicLayout({ children, sidebarTopContent }) {
     const navItems = [
         { key: "dashboard",    label: "Dashboard",    icon: DashboardIcon },
         { key: "doctors",      label: "Doctors",      icon: DoctorsIcon },
@@ -43,32 +42,30 @@ export default function ClinicLayout({ activePage = "doctors", onNavigate, child
 
                 {/* Navigation links */}
                 <nav className="flex-1 px-3 mt-2 space-y-1">
-                    {navItems.map((item) => {
-                        const isActive = activePage === item.key;
-                        return (
-                            <button
-                                key={item.key}
-                                onClick={() => onNavigate?.(item.key)}
-                                className={`
-                                    w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer
-                                    ${isActive
-                                        ? "bg-blue-600 text-white shadow-md shadow-blue-200"
-                                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                                    }
-                                `}
-                            >
-                                <item.icon active={isActive} />
-                                {item.label}
-                            </button>
-                        );
-                    })}
+                    {navItems.map((item) => (
+                        <NavLink
+                            key={item.key}
+                            to={`/clinic/${item.key}`}
+                            className={({ isActive }) => `
+                                w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer
+                                ${isActive
+                                    ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                }
+                            `}
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <item.icon active={isActive} />
+                                    {item.label}
+                                </>
+                            )}
+                        </NavLink>
+                    ))}
                 </nav>
 
-                {sidebarBottomContent && (
-                    <div className="px-3 mt-4 mb-2">
-                        {sidebarBottomContent}
-                    </div>
-                )}
+                <div id="sidebar-bottom-portal" className="px-3 mt-4 mb-2">
+                </div>
 
                 {/* Bottom actions */}
                 <div className="px-3 pb-6 space-y-1 border-t border-gray-100 pt-4 mt-auto">
