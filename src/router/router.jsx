@@ -14,7 +14,6 @@ import { requireGuest, requireRole } from "../auth/routeGuards.js";
 import Login from "../pages/Login";
 import Register from "../pages/Register.jsx";
 import PatientHomePage from "../pages/PatientHomePage.jsx";
-import PatientDashboard from "../pages/patient/PatientDashboard.jsx";
 import AdminDashboard from "../pages/admin/AdminDashboard.jsx";
 import ClinicDashboard from "../pages/clinic/ClinicDashboard.jsx";
 import ClinicOverview from "../pages/clinic/ClinicOverview";
@@ -150,11 +149,6 @@ export const router = createBrowserRouter([
         element: <Register />,
         action: registerAction,
         loader: requireGuest,
-    },
-    {
-        path: "/patient",
-        element: <PatientDashboard />,
-        loader: () => requireRole("PATIENT"),
     },
     {
         path: "/admin",

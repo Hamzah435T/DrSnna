@@ -493,14 +493,19 @@ export default function ClinicProfileSettings() {
                             onClick={handleSave}
                             className="h-[36px] rounded-md bg-blue-800 px-6 text-[13px] font-semibold text-white shadow-sm transition hover:bg-blue-900"
                         >
-                            Save
-                            <br />
-                            Changes
+                            Save Changes
                         </button>
                     </div>
                 </div>
 
                 <form onSubmit={handleSave} className="space-y-5">
+                    {saved && (
+                        <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-[13px] text-green-700">
+                            Changes saved locally. Backend integration can be added
+                            later.
+                        </div>
+                    )}
+
                     {/* GENERAL INFORMATION */}
                     <Section
                         icon={<StoreIcon />}
@@ -759,12 +764,6 @@ export default function ClinicProfileSettings() {
                         </div>
                     </Section>
 
-                    {saved && (
-                        <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-[13px] text-green-700">
-                            Changes saved locally. Backend integration can be added
-                            later.
-                        </div>
-                    )}
                 </form>
             </div>
         </div>

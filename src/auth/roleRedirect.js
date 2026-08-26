@@ -2,7 +2,7 @@ const ROLE_ROUTES = {
     ADMIN: "/admin",
     CLINIC: "/clinic",
     DOCTOR: "/doctor",
-    PATIENT: "/patient",
+    PATIENT: "/",
 };
 
 export function getRoleRedirect(role) {

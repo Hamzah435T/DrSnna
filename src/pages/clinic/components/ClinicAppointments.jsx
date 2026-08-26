@@ -119,23 +119,6 @@ export default function ClinicAppointments() {
 
     const sidebarContent = (
         <div className="flex flex-col gap-4 mt-22">
-            <div className="flex flex-col gap-2">
-                <button
-                    onClick={() => setIsNewAppointmentOpen(true)}
-                    className="w-full bg-blue-800 text-white rounded-full py-2.5 px-4 flex items-center justify-center gap-1.5 font-semibold shadow-md cursor-pointer hover:bg-blue-700 transition-colors text-[13px]"
-                >
-                    <span className="text-lg leading-none mb-0.5">+</span> New Appointment
-                </button>
-                <button
-                    onClick={handleDelete}
-                    className={`w-full rounded-full py-2.5 px-4 flex items-center justify-center gap-1.5 font-semibold transition-all text-[13px] ${selectedAppointmentId
-                        ? 'bg-red-500 text-white shadow-md hover:bg-red-600 cursor-pointer'
-                        : 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                        }`}
-                >
-                    <TrashIcon className="w-4 h-4" /> Delete Selected
-                </button>
-            </div>
 
             {/* Schedule View - Doctor Toggles */}
             <div className="mt-2">
@@ -170,22 +153,42 @@ export default function ClinicAppointments() {
             {portalNode && createPortal(sidebarContent, portalNode)}
 
             {/* Header: Month & Year */}
-            <div className="flex items-center gap-4 px-6 py-4 border-b border-gray-100">
-                <div className="flex items-center gap-1 text-gray-500">
-                    <button onClick={() => {
-                        const d = new Date(currentWeekStart);
-                        d.setDate(d.getDate() - 7);
-                        setCurrentWeekStart(d);
-                    }} className="p-1 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"><ChevronLeftIcon /></button>
-                    <button onClick={() => {
-                        const d = new Date(currentWeekStart);
-                        d.setDate(d.getDate() + 7);
-                        setCurrentWeekStart(d);
-                    }} className="p-1 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"><ChevronRightIcon /></button>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1 text-gray-500">
+                        <button onClick={() => {
+                            const d = new Date(currentWeekStart);
+                            d.setDate(d.getDate() - 7);
+                            setCurrentWeekStart(d);
+                        }} className="p-1 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"><ChevronLeftIcon /></button>
+                        <button onClick={() => {
+                            const d = new Date(currentWeekStart);
+                            d.setDate(d.getDate() + 7);
+                            setCurrentWeekStart(d);
+                        }} className="p-1 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"><ChevronRightIcon /></button>
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-800">
+                        {currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </h2>
                 </div>
-                <h2 className="text-xl font-bold text-gray-800">
-                    {currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </h2>
+                
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleDelete}
+                        className={`rounded-full py-2 px-4 flex items-center justify-center gap-1.5 font-semibold transition-all text-[13px] ${selectedAppointmentId
+                            ? 'bg-red-500 text-white shadow-md hover:bg-red-600 cursor-pointer'
+                            : 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                            }`}
+                    >
+                        <TrashIcon className="w-4 h-4" /> Delete Selected
+                    </button>
+                    <button
+                        onClick={() => setIsNewAppointmentOpen(true)}
+                        className="bg-blue-800 text-white rounded-full py-2 px-4 flex items-center justify-center gap-1.5 font-semibold shadow-md cursor-pointer hover:bg-blue-700 transition-colors text-[13px]"
+                    >
+                        <span className="text-lg leading-none mb-0.5">+</span> New Appointment
+                    </button>
+                </div>
             </div>
 
             {/* Calendar Grid */}
