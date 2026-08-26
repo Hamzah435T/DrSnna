@@ -42,6 +42,11 @@ export default function ClinicDoctors() {
         schedule: [],
     });
 
+    const [deleteModal, setDeleteModal] = useState({
+        open: false,
+        doctor: null,
+    });
+
     // ── Load data on mount ───────────────────────────────────────────────────
     useEffect(() => {
         async function load() {
@@ -118,6 +123,18 @@ export default function ClinicDoctors() {
         } catch (err) {
             console.error("Toggle status failed:", err);
         }
+    }
+
+    function handleDeleteDoctor(doctor) {
+        setOpenMenuId(null);
+        setDeleteModal({ open: true, doctor });
+    }
+
+    function confirmDelete() {
+        if (deleteModal.doctor) {
+            setDoctors((prev) => prev.filter((d) => d.id !== deleteModal.doctor.id));
+        }
+        setDeleteModal({ open: false, doctor: null });
     }
 
     async function openScheduleModal(doctor) {
@@ -236,6 +253,7 @@ export default function ClinicDoctors() {
                             onEdit={() => openEditDoctor(doc)}
                             onManageHours={() => openScheduleModal(doc)}
                             onToggleStatus={() => handleToggleStatus(doc)}
+                            onDelete={() => handleDeleteDoctor(doc)}
                         />
                     ))}
                 </div>
@@ -263,6 +281,16 @@ export default function ClinicDoctors() {
                     }
                 />
             )}
+
+            {/* ─── Delete Confirm Modal ─── */}
+            {deleteModal.open && (
+                <ConfirmModal
+                    title="Delete Doctor"
+                    message={`Are you sure you want to delete ${deleteModal.doctor?.fullName}? This action cannot be undone.`}
+                    onConfirm={confirmDelete}
+                    onCancel={() => setDeleteModal({ open: false, doctor: null })}
+                />
+            )}
         </div>
     );
 }
@@ -273,7 +301,7 @@ export default function ClinicDoctors() {
    ══════════════════════════════════════════════════════════════════════════════ */
 
 /** ─── Doctor Card ─── */
-function DoctorCard({ doctor, isMenuOpen, onToggleMenu, onEdit, onManageHours, onToggleStatus }) {
+function DoctorCard({ doctor, isMenuOpen, onToggleMenu, onEdit, onManageHours, onToggleStatus, onDelete }) {
     const menuRef = useRef(null);
 
     return (
@@ -329,6 +357,12 @@ function DoctorCard({ doctor, isMenuOpen, onToggleMenu, onEdit, onManageHours, o
                         onClick={onToggleStatus}
                         danger={doctor.isActive}
                     />
+                    <DropdownItem
+                        icon={<TrashIcon />}
+                        label="Delete"
+                        onClick={onDelete}
+                        danger={true}
+                    />
                 </div>
             )}
         </div>
@@ -383,9 +417,8 @@ function StatusBadge({ isActive }) {
             `}
         >
             <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                    isActive ? "bg-emerald-500" : "bg-gray-400"
-                }`}
+                className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-gray-400"
+                    }`}
             />
             {isActive ? "Active" : "Inactive"}
         </span>
@@ -640,6 +673,42 @@ function ScheduleModal({ doctorName, schedule, onSlotToggle, onConfigureDay, onC
     );
 }
 
+/** ─── Delete Confirm Modal ─── */
+function ConfirmModal({ title, message, onConfirm, onCancel }) {
+    return (
+        <ModalBackdrop onClose={onCancel}>
+            <div
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-[400px] mx-4 p-6 animate-[scaleIn_0.2s_ease-out]"
+            >
+                <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 border border-red-100">
+                        <TrashIcon />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+                        <p className="text-sm text-gray-500 mt-2 leading-relaxed">{message}</p>
+                    </div>
+                </div>
+                <div className="flex justify-end gap-3 mt-8">
+                    <button
+                        onClick={onCancel}
+                        className="px-5 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        className="px-5 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors shadow-md shadow-red-200 cursor-pointer"
+                    >
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </ModalBackdrop>
+    );
+}
+
 
 /** ─── Modal Backdrop ─── */
 function ModalBackdrop({ onClose, children }) {
@@ -661,8 +730,8 @@ function ModalBackdrop({ onClose, children }) {
 function PlusIcon() {
     return (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19"/>
-            <line x1="5" y1="12" x2="19" y2="12"/>
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
     );
 }
@@ -670,9 +739,9 @@ function PlusIcon() {
 function ThreeDotsIcon() {
     return (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="5" r="1.5"/>
-            <circle cx="12" cy="12" r="1.5"/>
-            <circle cx="12" cy="19" r="1.5"/>
+            <circle cx="12" cy="5" r="1.5" />
+            <circle cx="12" cy="12" r="1.5" />
+            <circle cx="12" cy="19" r="1.5" />
         </svg>
     );
 }
@@ -680,8 +749,8 @@ function ThreeDotsIcon() {
 function EditIcon() {
     return (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
         </svg>
     );
 }
@@ -689,8 +758,8 @@ function EditIcon() {
 function ClockIcon() {
     return (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
         </svg>
     );
 }
@@ -698,9 +767,9 @@ function ClockIcon() {
 function DeactivateIcon() {
     return (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="15" y1="9" x2="9" y2="15"/>
-            <line x1="9" y1="9" x2="15" y2="15"/>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+            <line x1="9" y1="9" x2="15" y2="15" />
         </svg>
     );
 }
@@ -708,8 +777,8 @@ function DeactivateIcon() {
 function ActivateIcon() {
     return (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-            <polyline points="22 4 12 14.01 9 11.01"/>
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
         </svg>
     );
 }
@@ -717,8 +786,8 @@ function ActivateIcon() {
 function CloseIcon() {
     return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
     );
 }
@@ -726,7 +795,7 @@ function CloseIcon() {
 function ChevronDownIcon({ className }) {
     return (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <polyline points="6 9 12 15 18 9"/>
+            <polyline points="6 9 12 15 18 9" />
         </svg>
     );
 }
@@ -734,9 +803,18 @@ function ChevronDownIcon({ className }) {
 function PlusCircleIcon() {
     return (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="16"/>
-            <line x1="8" y1="12" x2="16" y2="12"/>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="16" />
+            <line x1="8" y1="12" x2="16" y2="12" />
+        </svg>
+    );
+}
+
+function TrashIcon() {
+    return (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
         </svg>
     );
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router';
-import { LayoutDashboard, UserRound, Calendar, Settings, HelpCircle, LogOut } from 'lucide-react';
+import { LayoutDashboard, UserRound, Calendar, Settings, HelpCircle, LogOut, Stethoscope } from 'lucide-react';
 import { clearAuth } from '../auth/authStorage';
 
 export default function ClinicSidebar() {
@@ -23,12 +23,12 @@ export default function ClinicSidebar() {
             <div>
                 {/* Logo Section */}
                 <div className="flex items-center gap-3 px-2 py-4 mb-6">
-                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl">
-                        S
+                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-xs">
+                        <Stethoscope className="w-5 h-5 stroke-[2.2]" />
                     </div>
                     <div>
-                        <h1 className="font-bold text-gray-900 leading-none">Dr.Sna Admin</h1>
-                        <span className="text-xs text-gray-400 uppercase tracking-wider">Clinical Management</span>
+                        <h1 className="font-bold text-gray-900 leading-none text-lg">Dr.Sna Dental</h1>
+                        <span className="text-[13px] text-gray-500 font-medium">Clinic Portal</span>
                     </div>
                 </div>
 

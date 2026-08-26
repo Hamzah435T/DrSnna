@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import PatientNavbar from '../components/PatientNavbar';
 import {
   Stethoscope,
   Search,
@@ -224,31 +225,7 @@ export default function PatientHomePage() {
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-blue-600 selection:text-white pb-16">
 
       {/* 1. HEADER */}
-      <header className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs">
-              <Stethoscope className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <div>
-              <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
-                Dr.Sna Dental
-              </span>
-              <p className="text-[10px] text-slate-500 font-medium -mt-0.5">Patient Portal</p>
-            </div>
-          </div>
-
-          <div
-            className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center cursor-default"
-            aria-label="User Profile"
-            title="User Profile (Inactive)"
-          >
-            <User className="w-4 h-4 text-slate-600" />
-          </div>
-
-        </div>
-      </header>
+      <PatientNavbar />
 
       {/* 2. HERO */}
       <section className="bg-white border-b border-slate-200/80 py-8 px-4 sm:px-6 lg:px-8 text-center">

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import PatientNavbar from '../../components/PatientNavbar';
 import './ClinicDetails.css';
 
 // ─── Mock Data (will be replaced by API responses) ───
@@ -26,22 +27,28 @@ const doctorsData = [
         id: 1,
         name: 'Dr. Sarah Jenkins',
         specialty: 'Lead Orthodontist',
-        rating: 4.8,
+        rating: 4.9,
         image: '/doctor-sarah.jpg',
         description:
-            'Specializing in Invisalign aligners and complex orthodontic corrections with 12 years of clinical experience.',
+            'Specializing in invisible aligners and complex orthodontic corrections with 12 years of clinical experience.',
         availableSlots: {
             Today: [
-                '10:00', '11:00', '12:00', '13:00',
-                '14:00', '15:00', '16:00', '17:00',
+                { time: '10:00', available: true }, { time: '11:00', available: false },
+                { time: '12:00', available: true }, { time: '13:00', available: true },
+                { time: '14:00', available: false }, { time: '15:00', available: true },
+                { time: '16:00', available: true }, { time: '17:00', available: true },
             ],
             Tomorrow: [
-                '10:00', '11:00', '12:00', '13:00',
-                '14:00', '15:00', '16:00', '17:00',
+                { time: '10:00', available: true }, { time: '11:00', available: true },
+                { time: '12:00', available: false }, { time: '13:00', available: true },
+                { time: '14:00', available: true }, { time: '15:00', available: true },
+                { time: '16:00', available: false }, { time: '17:00', available: true },
             ],
             'Thu, Oct 26': [
-                '11:00', '12:00', '13:00',
-                '14:00', '16:00', '17:00',
+                { time: '10:00', available: false }, { time: '11:00', available: true },
+                { time: '12:00', available: true }, { time: '13:00', available: true },
+                { time: '14:00', available: true }, { time: '15:00', available: false },
+                { time: '16:00', available: true }, { time: '17:00', available: true },
             ],
         },
     },
@@ -54,9 +61,21 @@ const doctorsData = [
         description:
             'Expert in dental implants, wisdom teeth extraction, and complex oral surgeries. Board certified since 2015.',
         availableSlots: {
-            Today: ['09:00', '10:00', '11:00', '14:00', '15:00'],
-            Tomorrow: ['10:00', '11:00', '13:00', '14:00', '16:00'],
-            'Thu, Oct 26': ['09:00', '11:00', '14:00', '15:00', '16:00'],
+            Today: [
+                { time: '09:00', available: true }, { time: '10:00', available: false },
+                { time: '11:00', available: true }, { time: '14:00', available: true },
+                { time: '15:00', available: true },
+            ],
+            Tomorrow: [
+                { time: '10:00', available: true }, { time: '11:00', available: true },
+                { time: '13:00', available: false }, { time: '14:00', available: true },
+                { time: '16:00', available: true },
+            ],
+            'Thu, Oct 26': [
+                { time: '09:00', available: true }, { time: '11:00', available: true },
+                { time: '14:00', available: false }, { time: '15:00', available: true },
+                { time: '16:00', available: true },
+            ],
         },
     },
 ];
@@ -66,13 +85,13 @@ const reviewsData = [
         id: 1,
         author: 'Emily Johnson',
         timeAgo: '2 weeks ago',
-        rating: 4,
-        avatarColor: '#dc2626',
-        avatarInitial: 'E',
+        rating: 5,
+        avatarColor: '#0ea5e9',
+        avatarInitial: 'EJ',
         text: '"Incredible experience! Dr. Jenkins was so patient and explained my treatment plan perfectly. The clinic is spotless and the front desk staff are incredibly welcoming."',
         reply: {
             author: 'Downtown Smile Center',
-            text: 'Thank you, Emily! We\'re thrilled to hear you had a great experience with Dr. Jenkins and our team.',
+            text: 'Thank you Emily! We\'re thrilled to hear you had a great experience with Dr. Jenkins and our team.',
         },
     },
     {
@@ -80,8 +99,8 @@ const reviewsData = [
         author: 'Mark Roberts',
         timeAgo: '1 month ago',
         rating: 4,
-        avatarColor: '#2563eb',
-        avatarInitial: 'M',
+        avatarColor: '#8b5cf6',
+        avatarInitial: 'MR',
         text: '"Very professional and clean environment. Had my wisdom teeth removed by Dr. Chen and recovery was smoother than expected. Wait time was a bit long though."',
         reply: {
             author: 'Downtown Smile Center',
@@ -92,24 +111,7 @@ const reviewsData = [
 
 // ─── Sub-components ───
 
-function Navbar() {
-    const navigate = useNavigate();
-    return (
-        <header className="cd-navbar" id="clinic-details-navbar">
-            <div className="cd-navbar-inner">
-                <div className="cd-navbar-brand" onClick={() => navigate('/')}>
-                    <span className="cd-brand-text">Dr.Sna Dental</span>
-                </div>
-                <div className="cd-navbar-avatar" id="user-avatar-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                    </svg>
-                </div>
-            </div>
-        </header>
-    );
-}
+
 
 function StarRating({ rating, size = 14 }) {
     const fullStars = Math.floor(rating);
@@ -118,17 +120,17 @@ function StarRating({ rating, size = 14 }) {
     for (let i = 0; i < 5; i++) {
         if (i < fullStars) {
             stars.push(
-                <svg key={i} width={size} height={size} viewBox="0 0 24 24" fill="#f59e0b" stroke="none">
+                <svg key={i} width={size} height={size} viewBox="0 0 24 24" fill="#eab308" stroke="#eab308" strokeWidth="1">
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
             );
         } else if (i === fullStars && hasHalf) {
             stars.push(
-                <svg key={i} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="none">
+                <svg key={i} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="1">
                     <defs>
                         <linearGradient id={`half-${i}`}>
-                            <stop offset="50%" stopColor="#f59e0b" />
-                            <stop offset="50%" stopColor="#d1d5db" />
+                            <stop offset="50%" stopColor="#eab308" />
+                            <stop offset="50%" stopColor="#e2e8f0" />
                         </linearGradient>
                     </defs>
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill={`url(#half-${i})`} />
@@ -136,7 +138,7 @@ function StarRating({ rating, size = 14 }) {
             );
         } else {
             stars.push(
-                <svg key={i} width={size} height={size} viewBox="0 0 24 24" fill="#d1d5db" stroke="none">
+                <svg key={i} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1">
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
             );
@@ -147,7 +149,7 @@ function StarRating({ rating, size = 14 }) {
 
 function ClinicHero({ clinic }) {
     return (
-        <section className="cd-hero" id="clinic-hero">
+        <section className="cd-hero cd-card" id="clinic-hero">
             <div className="cd-hero-image-wrap">
                 <img
                     src={clinic.image}
@@ -158,8 +160,9 @@ function ClinicHero({ clinic }) {
             <div className="cd-hero-info">
                 <h1 className="cd-hero-name" id="clinic-name">{clinic.name}</h1>
                 <div className="cd-hero-address">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#22c55e" stroke="none">
-                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
                     </svg>
                     <span>{clinic.address}</span>
                 </div>
@@ -179,12 +182,12 @@ function ClinicHero({ clinic }) {
 function AboutSection({ clinic }) {
     return (
         <section className="cd-about-contact-grid" id="about-contact-section">
-            <div className="cd-about" id="about-clinic">
+            <div className="cd-about cd-card" id="about-clinic">
                 <h2 className="cd-section-title">About Our Clinic</h2>
                 <p className="cd-about-text">{clinic.about}</p>
             </div>
 
-            <div className="cd-contact" id="contact-hours">
+            <div className="cd-contact cd-card" id="contact-hours">
                 <h2 className="cd-section-title">Contact & Hours</h2>
                 <div className="cd-contact-items">
                     <div className="cd-contact-item">
@@ -226,50 +229,65 @@ function AboutSection({ clinic }) {
     );
 }
 
-function TimeSlotGrid({ slots, dayTabs, activeDay, onDayChange }) {
-    const currentSlots = slots[activeDay] || [];
-    // Generate colors for time slot buttons - alternating row colors
-    const getSlotColor = (index) => {
-        const row = Math.floor(index / 2);
-        const colors = ['cd-slot-blue', 'cd-slot-green', 'cd-slot-orange', 'cd-slot-red'];
-        return colors[row % colors.length];
+function TimeSlotGrid({ doctorId, slots, selectedAppointment, onSelectAppointment }) {
+    const days = Object.keys(slots);
+
+    const handleSlotClick = (day, time) => {
+        if (selectedAppointment?.doctorId === doctorId && selectedAppointment?.day === day && selectedAppointment?.time === time) {
+            onSelectAppointment(null);
+        } else {
+            onSelectAppointment({ doctorId, day, time });
+        }
     };
 
     return (
         <div className="cd-timeslot-section">
             <p className="cd-timeslot-label">SELECT A TIME FOR CONSULTATION</p>
-            <div className="cd-day-tabs">
-                {dayTabs.map((day) => (
-                    <button
-                        key={day}
-                        className={`cd-day-tab ${activeDay === day ? 'cd-day-tab-active' : ''}`}
-                        onClick={() => onDayChange(day)}
-                    >
-                        {day}
-                    </button>
-                ))}
-            </div>
-            <div className="cd-slots-grid">
-                {currentSlots.map((time, idx) => (
-                    <button
-                        key={time}
-                        className={`cd-slot-btn ${getSlotColor(idx)}`}
-                    >
-                        {time}
-                    </button>
+            <div className="cd-days-container">
+                {days.map(day => (
+                    <div key={day} className="cd-day-column">
+                        <div className="cd-day-header">{day}</div>
+                        <div className="cd-day-slots">
+                            {slots[day].map(slot => {
+                                const isAvailable = slot.available;
+                                const isSelected = selectedAppointment?.doctorId === doctorId && selectedAppointment?.day === day && selectedAppointment?.time === slot.time;
+                                const isAnotherSelected = selectedAppointment !== null && !isSelected;
+
+                                let slotClass = 'cd-slot-unavailable';
+                                if (isAvailable) {
+                                    if (isSelected) {
+                                        slotClass = 'cd-slot-selected';
+                                    } else if (isAnotherSelected) {
+                                        slotClass = 'cd-slot-unselected';
+                                    } else {
+                                        slotClass = 'cd-slot-available';
+                                    }
+                                }
+
+                                return (
+                                    <button
+                                        key={slot.time}
+                                        className={`cd-slot-btn ${slotClass}`}
+                                        disabled={!isAvailable}
+                                        onClick={() => handleSlotClick(day, slot.time)}
+                                    >
+                                        {slot.time}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
                 ))}
             </div>
         </div>
     );
 }
 
-function DoctorCard({ doctor }) {
+function DoctorCard({ doctor, selectedAppointment, onSelectAppointment }) {
     const [showSlots, setShowSlots] = useState(doctor.id === 1);
-    const dayTabs = Object.keys(doctor.availableSlots);
-    const [activeDay, setActiveDay] = useState(dayTabs[0]);
 
     return (
-        <div className="cd-doctor-card" id={`doctor-card-${doctor.id}`}>
+        <div className="cd-doctor-card cd-card" id={`doctor-card-${doctor.id}`}>
             <div className="cd-doctor-header">
                 <img
                     src={doctor.image}
@@ -280,7 +298,9 @@ function DoctorCard({ doctor }) {
                     <div className="cd-doctor-name-row">
                         <h3 className="cd-doctor-name">{doctor.name}</h3>
                         <div className="cd-doctor-rating-badge">
-                            <StarRating rating={doctor.rating} size={12} />
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="#eab308" stroke="none">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                            </svg>
                             <span className="cd-rating-number">{doctor.rating}</span>
                         </div>
                     </div>
@@ -298,10 +318,10 @@ function DoctorCard({ doctor }) {
             </button>
             {showSlots && (
                 <TimeSlotGrid
+                    doctorId={doctor.id}
                     slots={doctor.availableSlots}
-                    dayTabs={dayTabs}
-                    activeDay={activeDay}
-                    onDayChange={setActiveDay}
+                    selectedAppointment={selectedAppointment}
+                    onSelectAppointment={onSelectAppointment}
                 />
             )}
         </div>
@@ -310,7 +330,7 @@ function DoctorCard({ doctor }) {
 
 function ReviewCard({ review }) {
     return (
-        <div className="cd-review-card" id={`review-${review.id}`}>
+        <div className="cd-review-card cd-card" id={`review-${review.id}`}>
             <div className="cd-review-header">
                 <div className="cd-review-author-row">
                     <div
@@ -331,8 +351,9 @@ function ReviewCard({ review }) {
                 <div className="cd-review-reply">
                     <div className="cd-reply-author-row">
                         <div className="cd-reply-icon">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="#22c55e" stroke="none">
-                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
                             </svg>
                         </div>
                         <span className="cd-reply-author">{review.reply.author}</span>
@@ -347,29 +368,29 @@ function ReviewCard({ review }) {
 // ─── Main Page Component ───
 
 export default function ClinicDetails() {
+    const [selectedAppointment, setSelectedAppointment] = useState(null);
     return (
         <div className="cd-page">
-            <Navbar />
+            <PatientNavbar />
 
             <main className="cd-main">
                 <ClinicHero clinic={clinicData} />
 
-                <div className="cd-divider" />
-
                 <AboutSection clinic={clinicData} />
-
-                <div className="cd-divider" />
 
                 <section className="cd-doctors-section" id="our-doctors">
                     <h2 className="cd-section-title">Our Doctors</h2>
                     <div className="cd-doctors-list">
                         {doctorsData.map((doc) => (
-                            <DoctorCard key={doc.id} doctor={doc} />
+                            <DoctorCard
+                                key={doc.id}
+                                doctor={doc}
+                                selectedAppointment={selectedAppointment}
+                                onSelectAppointment={setSelectedAppointment}
+                            />
                         ))}
                     </div>
                 </section>
-
-                <div className="cd-divider" />
 
                 <section className="cd-reviews-section" id="reviews-section">
                     <h2 className="cd-section-title">Reviews & Replies</h2>
