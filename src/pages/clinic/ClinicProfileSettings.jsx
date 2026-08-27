@@ -1,36 +1,72 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, Form } from "react-router";
+import * as api from "../../api/clinicProfileApi";
+
+// Map between backend City enum and display names
+const CITY_OPTIONS = [
+    { value: "AMMAN", label: "Amman" },
+    { value: "IRBID", label: "Irbid" },
+    { value: "ZARQA", label: "Zarqa" },
+    { value: "MAFRAQ", label: "Mafraq" },
+    { value: "AJLOUN", label: "Ajloun" },
+    { value: "JERASH", label: "Jerash" },
+    { value: "MADABA", label: "Madaba" },
+    { value: "BALQA", label: "Salt" },
+    { value: "KARAK", label: "Karak" },
+    { value: "TAFILEH", label: "Tafilah" },
+    { value: "MAAN", label: "Maan" },
+    { value: "AQABA", label: "Aqaba" },
+];
+
+const STATIC_SPECIALTIES = [
+    "General Dentistry",
+    "Orthodontics",
+    "Oral Surgery",
+    "Pediatric Dentistry",
+    "Periodontics",
+    "Cosmetic Dentistry",
+    "Endodontics"
+];
 
 const initialForm = {
-    clinicName: "Dr.Sna Dental",
-    introduction: "",
-    primaryPhone: "+0799999999",
-    emergencyPhone: "+0790000000",
-    instagram: "drsna_dental",
-    facebook: "",
-    streetAddress: "Princess Sumayah street, Amman",
-    city: "7th circle",
-    state: "Amman",
-    zipCode: "11185",
-    specialties: {
-        "General Dentistry": true,
-        Orthodontics: true,
-        "Oral Surgery": false,
-        "Pediatric Dentistry": true,
-        Periodontics: false,
-        "Cosmetic Dentistry": true,
-        Endodontics: false,
-    },
+    clinicName: "",
+    checkingFee: "0.00",
+    description: "",
+    phoneNumber: "",
+    instagram: "",
+    city: "AMMAN",
+    address: "",
+    specialties: {},
     hours: {
-        Sunday: { enabled: true, from: "09:00", to: "17:00" },
-        Monday: { enabled: true, from: "09:00", to: "17:00" },
-        Tuesday: { enabled: true, from: "09:00", to: "17:00" },
-        Wednesday: { enabled: true, from: "09:00", to: "17:00" },
-        Thursday: { enabled: true, from: "09:00", to: "17:00" },
-        Friday: { enabled: false, from: "09:00", to: "13:00" },
+        Sunday: { enabled: false, from: "09:00", to: "17:00" },
+        Monday: { enabled: false, from: "09:00", to: "17:00" },
+        Tuesday: { enabled: false, from: "09:00", to: "17:00" },
+        Wednesday: { enabled: false, from: "09:00", to: "17:00" },
+        Thursday: { enabled: false, from: "09:00", to: "17:00" },
+        Friday: { enabled: false, from: "09:00", to: "17:00" },
         Saturday: { enabled: false, from: "09:00", to: "17:00" },
     },
 };
+
+function TrashIcon({ size = 20, className = "" }) {
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={className}
+        >
+            <path d="M3 6h18" />
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+        </svg>
+    );
+}
 
 function Icon({ children, size = 20, className = "" }) {
     return (
@@ -413,7 +449,52 @@ function TimeSelect({ value, onChange }) {
 
 export default function ClinicProfileSettings() {
     const [form, setForm] = useState(initialForm);
+    const [originalSpecialties, setOriginalSpecialties] = useState({});
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState("");
     const [saved, setSaved] = useState(false);
+    const [specialtyModal, setSpecialtyModal] = useState({ open: false, name: "" });
+    const [deletingSpecialty, setDeletingSpecialty] = useState(null);
+
+    function handleSaveSpecialty() {
+        const newName = specialtyModal.name.trim();
+        if (!newName) return;
+
+        setForm((current) => ({
+            ...current,
+            specialties: {
+                ...current.specialties,
+                [newName]: true,
+            },
+        }));
+
+        setSpecialtyModal({ open: false, name: "" });
+        setSaved(false);
+    }
+
+    async function handleDeleteSpecialty(name) {
+        setDeletingSpecialty(name);
+        try {
+            await api.deleteSpecialty(name);
+            setTimeout(() => {
+                setForm(current => {
+                    const newSpecialties = { ...current.specialties };
+                    delete newSpecialties[name];
+                    return { ...current, specialties: newSpecialties };
+                });
+                setOriginalSpecialties(current => {
+                    const newSpecialties = { ...current };
+                    delete newSpecialties[name];
+                    return newSpecialties;
+                });
+                setDeletingSpecialty(null);
+            }, 500); // Wait for animation to finish
+        } catch (err) {
+            setError(err.message);
+            setDeletingSpecialty(null);
+        }
+    }
 
     function updateField(field, value) {
         setForm((current) => ({
@@ -451,23 +532,140 @@ export default function ClinicProfileSettings() {
         setSaved(false);
     }
 
-    function handleSave(event) {
-        event.preventDefault();
+    useEffect(() => {
+        loadData();
+    }, []);
 
-        console.log("Clinic profile:", form);
-        setSaved(true);
+    async function loadData() {
+        try {
+            setLoading(true);
+
+            // Fetch profile, specialties, and clinic hours in parallel
+            const [profile, specialtiesData, hoursData] = await Promise.all([
+                api.fetchClinicProfile(),
+                api.fetchSpecialties(),
+                api.fetchClinicHours(),
+            ]);
+
+            // Build specialties map: { "General Dentistry": true, "Orthodontics": true, ... }
+            const specialtiesMap = {};
+            STATIC_SPECIALTIES.forEach(s => {
+                specialtiesMap[s] = false;
+            });
+            specialtiesData.forEach(s => {
+                specialtiesMap[s.name] = true;
+            });
+            setOriginalSpecialties({ ...specialtiesMap });
+
+            // Build hours map from backend schedules
+            const javaDayToJsDay = {
+                SUNDAY: "Sunday", MONDAY: "Monday", TUESDAY: "Tuesday",
+                WEDNESDAY: "Wednesday", THURSDAY: "Thursday", FRIDAY: "Friday", SATURDAY: "Saturday"
+            };
+            const hours = { ...initialForm.hours }; // start with all disabled
+            hoursData.forEach(schedule => {
+                const dayName = javaDayToJsDay[schedule.dayOfWeek];
+                if (dayName) {
+                    hours[dayName] = {
+                        enabled: true,
+                        from: schedule.startTime ? schedule.startTime.substring(0, 5) : "09:00",
+                        to: schedule.endTime ? schedule.endTime.substring(0, 5) : "17:00",
+                    };
+                }
+            });
+
+            setForm(current => ({
+                ...current,
+                clinicName: profile.clinicName || "",
+                checkingFee: profile.checkingFee?.toString() || "0.00",
+                description: profile.description || "",
+                phoneNumber: profile.phoneNumber || "",
+                instagram: profile.socialLinks || "",
+                city: profile.city || "AMMAN",
+                address: profile.detailedAddress || "",
+                specialties: specialtiesMap,
+                hours: hours,
+            }));
+            setError("");
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
     }
 
-    function handleCancel() {
-        setForm(initialForm);
-        setSaved(false);
+    async function handleSave(event) {
+        event.preventDefault();
+        setSaving(true);
+        setError("");
+
+        try {
+            // 1. Save Profile
+            await api.updateClinicProfile({
+                clinicName: form.clinicName,
+                phoneNumber: form.phoneNumber,
+                socialLinks: form.instagram,
+                detailedAddress: form.address,
+                workingHours: null, // Keep null as we use detailed hours
+                checkingFee: parseFloat(form.checkingFee),
+                description: form.description,
+                city: form.city
+            });
+
+            // 2. Save Specialties
+            const specialtyPromises = Object.keys(form.specialties).map(async (specialtyName) => {
+                const isChecked = form.specialties[specialtyName];
+                const wasChecked = originalSpecialties[specialtyName];
+
+                if (isChecked && !wasChecked) {
+                    return api.addSpecialty(specialtyName).catch(() => { });
+                } else if (!isChecked && wasChecked) {
+                    return api.deleteSpecialty(specialtyName).catch(() => { });
+                }
+            });
+
+            // 3. Save Hours
+            const jsDayToJavaDay = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+
+            const hoursPromises = Object.entries(form.hours).map(async ([day, schedule]) => {
+                const dayIndex = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(day);
+                const javaDay = jsDayToJavaDay[dayIndex];
+
+                if (schedule.enabled) {
+                    const startTime = schedule.from.length === 5 ? schedule.from + ":00" : schedule.from;
+                    const endTime = schedule.to.length === 5 ? schedule.to + ":00" : schedule.to;
+                    return api.saveClinicHours(javaDay, startTime, endTime).catch(() => { });
+                } else {
+                    return api.deleteClinicHours(javaDay).catch(() => { });
+                }
+            });
+
+            await Promise.all([...hoursPromises, ...specialtyPromises]);
+            setOriginalSpecialties({ ...form.specialties });
+
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setSaving(false);
+        }
+    }
+
+
+    if (loading) {
+        return (
+            <div className="flex min-h-[calc(100vh-64px)] items-center justify-center">
+                <div className="text-slate-500">Loading profile...</div>
+            </div>
+        );
     }
 
     return (
-        <div className="bg-[#f7f8fa] text-slate-950 min-h-[calc(100vh-64px)] w-full">
-            <div className="mx-auto max-w-[1060px]">
-                {/* Header */}
-                <div className="mb-6 flex items-start justify-between border-b border-slate-300 pb-4">
+        <div className="text-slate-950 w-full">
+            {/* Sticky Full-Width Header Band */}
+            <div className="sticky top-0 z-40 -mt-8 pt-8 pb-4 -mx-8 px-8 bg-[#f7f8fa] border-b border-slate-300 shadow-xs mb-6">
+                <div className="mx-auto max-w-[1060px] flex items-start justify-between">
                     <div>
                         <h1 className="text-[28px] font-medium leading-8 tracking-[-0.025em] text-slate-950">
                             Clinic Profile Settings
@@ -482,27 +680,29 @@ export default function ClinicProfileSettings() {
                     <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            onClick={handleCancel}
-                            className="h-[36px] rounded-md border border-blue-700 bg-white px-5 text-[13px] font-medium text-blue-800 transition hover:bg-blue-50"
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            type="button"
                             onClick={handleSave}
-                            className="h-[36px] rounded-md bg-blue-800 px-6 text-[13px] font-semibold text-white shadow-sm transition hover:bg-blue-900"
+                            disabled={saving}
+                            className={`flex h-[36px] items-center justify-center gap-2 rounded-md bg-blue-700 px-5 text-[13px] font-medium text-white shadow-sm transition hover:bg-blue-800 ${saving ? "opacity-70" : ""}`}
                         >
-                            Save Changes
+                            <StoreIcon size={16} />
+                            {saving ? "Saving..." : "Save Settings"}
                         </button>
                     </div>
                 </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="mx-auto max-w-[1060px] pb-12">
+                {error && (
+                    <div className="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-600 border border-red-200">
+                        {error}
+                    </div>
+                )}
 
                 <form onSubmit={handleSave} className="space-y-5">
                     {saved && (
                         <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-[13px] text-green-700">
-                            Changes saved locally. Backend integration can be added
-                            later.
+                            Changes saved successfully.
                         </div>
                     )}
 
@@ -511,8 +711,8 @@ export default function ClinicProfileSettings() {
                         icon={<StoreIcon />}
                         title="General Information"
                     >
-                        <div className="space-y-5">
-                            <Field label="Clinic Name" required>
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+                            <Field label="Clinic Name " required>
                                 <Input
                                     value={form.clinicName}
                                     onChange={(e) =>
@@ -521,12 +721,29 @@ export default function ClinicProfileSettings() {
                                 />
                             </Field>
 
-                            <Field label="Clinic Introduction">
+                            <Field label="Checking Fee">
+                                <div className="flex">
+                                    <div className="flex h-[40px] w-[40px] items-center justify-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 text-[15px] font-medium text-slate-600">
+                                        $
+                                    </div>
+                                    <Input
+                                        value={form.checkingFee}
+                                        onChange={(e) =>
+                                            updateField("checkingFee", e.target.value)
+                                        }
+                                        className="rounded-l-none"
+                                    />
+                                </div>
+                            </Field>
+                        </div>
+
+                        <div className="mt-5">
+                            <Field label="Description">
                                 <textarea
-                                    value={form.introduction}
+                                    value={form.description}
                                     onChange={(e) => {
                                         if (e.target.value.length <= 500) {
-                                            updateField("introduction", e.target.value);
+                                            updateField("description", e.target.value);
                                         }
                                     }}
                                     placeholder="Briefly describe your clinic's mission, specialties, and atmosphere..."
@@ -534,7 +751,7 @@ export default function ClinicProfileSettings() {
                                 />
 
                                 <div className="mt-1 text-right text-[12px] text-slate-500">
-                                    {form.introduction.length} / 500 characters
+                                    {form.description.length} / 500 characters
                                 </div>
                             </Field>
                         </div>
@@ -546,16 +763,16 @@ export default function ClinicProfileSettings() {
                         title="Contact & Social"
                     >
                         <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-                            <Field label="Primary Phone">
+                            <Field label="Phone Number">
                                 <div className="flex">
                                     <div className="flex h-[40px] w-[40px] items-center justify-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 text-slate-600">
                                         <PhoneIcon size={13} />
                                     </div>
 
                                     <Input
-                                        value={form.primaryPhone}
+                                        value={form.phoneNumber}
                                         onChange={(e) =>
-                                            updateField("primaryPhone", e.target.value)
+                                            updateField("phoneNumber", e.target.value)
                                         }
                                         className="rounded-l-none"
                                     />
@@ -577,39 +794,6 @@ export default function ClinicProfileSettings() {
                                     />
                                 </div>
                             </Field>
-
-                            <Field label="Emergency / Secondary">
-                                <div className="flex">
-                                    <div className="flex h-[40px] w-[40px] items-center justify-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 text-[18px] font-bold text-red-600">
-                                        *
-                                    </div>
-
-                                    <Input
-                                        value={form.emergencyPhone}
-                                        onChange={(e) =>
-                                            updateField("emergencyPhone", e.target.value)
-                                        }
-                                        className="rounded-l-none"
-                                    />
-                                </div>
-                            </Field>
-
-                            <Field label="Facebook URL">
-                                <div className="flex">
-                                    <div className="flex h-[40px] w-[40px] items-center justify-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 text-[15px] text-slate-600">
-                                        🔗
-                                    </div>
-
-                                    <Input
-                                        value={form.facebook}
-                                        onChange={(e) =>
-                                            updateField("facebook", e.target.value)
-                                        }
-                                        placeholder="facebook.com/..."
-                                        className="rounded-l-none"
-                                    />
-                                </div>
-                            </Field>
                         </div>
                     </Section>
 
@@ -620,42 +804,29 @@ export default function ClinicProfileSettings() {
                     >
                         <div className="grid grid-cols-[1fr_1fr] gap-6">
                             <div className="space-y-5">
-                                <Field label="Street Address">
-                                    <Input
-                                        value={form.streetAddress}
-                                        onChange={(e) =>
-                                            updateField("streetAddress", e.target.value)
-                                        }
-                                    />
+                                <Field label="City">
+                                    <div className="relative">
+                                        <select
+                                            value={form.city}
+                                            onChange={(e) => updateField("city", e.target.value)}
+                                            className="h-[40px] w-full appearance-none rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                                        >
+                                            {CITY_OPTIONS.map(c => (
+                                                <option key={c.value} value={c.value}>{c.label}</option>
+                                            ))}
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="6 9 12 15 18 9" />
+                                            </svg>
+                                        </div>
+                                    </div>
                                 </Field>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <Field label="City">
-                                        <Input
-                                            value={form.city}
-                                            onChange={(e) =>
-                                                updateField("city", e.target.value)
-                                            }
-                                        />
-                                    </Field>
-
-                                    <Field label="State / Province">
-                                        <Input
-                                            value={form.state}
-                                            onChange={(e) =>
-                                                updateField("state", e.target.value)
-                                            }
-                                        />
-                                    </Field>
-                                </div>
-
-                                <Field label="Zip / Postal Code">
+                                <Field label="Address">
                                     <Input
-                                        value={form.zipCode}
-                                        onChange={(e) =>
-                                            updateField("zipCode", e.target.value)
-                                        }
-                                        className="max-w-[145px]"
+                                        value={form.address}
+                                        onChange={(e) => updateField("address", e.target.value)}
                                     />
                                 </Field>
                             </div>
@@ -688,21 +859,44 @@ export default function ClinicProfileSettings() {
                         title="Medical Specialties"
                     >
                         <div className="grid grid-cols-4 gap-3">
-                            {Object.keys(form.specialties).map((specialty) => (
-                                <label
-                                    key={specialty}
-                                    className="flex h-[36px] cursor-pointer items-center gap-2 rounded-md border border-slate-300 px-3 text-[13px] text-slate-800 transition hover:bg-slate-50"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={form.specialties[specialty]}
-                                        onChange={() => updateSpecialty(specialty)}
-                                        className="h-[18px] w-[18px] accent-blue-700"
-                                    />
+                            {Object.keys(form.specialties).map((specialty) => {
+                                const isStatic = STATIC_SPECIALTIES.includes(specialty);
+                                const isDeleting = deletingSpecialty === specialty;
 
-                                    <span>{specialty}</span>
-                                </label>
-                            ))}
+                                return (
+                                    <div
+                                        key={specialty}
+                                        className={`flex h-[36px] items-center justify-between rounded-md border border-slate-300 px-3 text-[13px] text-slate-800 transition-all duration-500 ease-in-out ${isDeleting ? "opacity-0 scale-95" : "opacity-100 scale-100 hover:bg-slate-50"}`}
+                                    >
+                                        <label className="flex items-center gap-2 cursor-pointer flex-1 h-full">
+                                            <input
+                                                type="checkbox"
+                                                checked={form.specialties[specialty]}
+                                                onChange={() => updateSpecialty(specialty)}
+                                                className="h-[18px] w-[18px] accent-blue-700"
+                                            />
+                                            <span className="truncate">{specialty}</span>
+                                        </label>
+                                        {!isStatic && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDeleteSpecialty(specialty)}
+                                                className="text-red-500 hover:text-red-700 p-1"
+                                                title="Delete Custom Specialty"
+                                            >
+                                                <TrashIcon size={15} />
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            <button
+                                type="button"
+                                onClick={() => setSpecialtyModal({ open: true, name: "" })}
+                                className="flex h-[36px] items-center justify-center gap-1.5 rounded-md border border-dashed border-slate-300 text-[13px] font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                            >
+                                <PlusIcon size={14} /> Add Specialty
+                            </button>
                         </div>
                     </Section>
 
@@ -766,6 +960,52 @@ export default function ClinicProfileSettings() {
 
                 </form>
             </div>
+
+            {/* ADD SPECIALTY MODAL */}
+            {specialtyModal.open && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="w-[400px] rounded-xl bg-white p-6 shadow-xl">
+                        <div className="mb-5 flex items-center justify-between">
+                            <h3 className="text-lg font-medium text-slate-900">Add New Specialty</h3>
+                            <button
+                                onClick={() => setSpecialtyModal({ open: false, name: "" })}
+                                className="text-slate-400 hover:text-slate-600"
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="mb-6">
+                            <label className="mb-2 block text-[13px] font-medium tracking-wide text-slate-700">Specialty Name</label>
+                            <input
+                                type="text"
+                                autoFocus
+                                value={specialtyModal.name}
+                                onChange={(e) => setSpecialtyModal({ ...specialtyModal, name: e.target.value })}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveSpecialty(); }}
+                                placeholder="e.g. Endodontics"
+                                className="h-[40px] w-full rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setSpecialtyModal({ open: false, name: "" })}
+                                className="h-[36px] rounded-md border border-slate-300 bg-white px-4 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSaveSpecialty}
+                                className="h-[36px] rounded-md bg-blue-700 px-4 text-[13px] font-medium text-white shadow-sm transition hover:bg-blue-800"
+                            >
+                                Save Specialty
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

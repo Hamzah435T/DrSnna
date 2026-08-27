@@ -8,63 +8,116 @@
  * making the migration to real HTTP calls seamless.
  */
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+const BASE_URL = "http://localhost:8080/api/clinic";
 
-// TODO: Replace BASE_URL with actual backend endpoint
-// const BASE_URL = "/api/clinic/doctors";
+import { getToken } from "../auth/authStorage";
 
-// import { getToken } from "../../auth/authStorage";
-// function authHeaders() {
-//     return { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" };
-// }
+function authHeaders() {
+    return {
+        Authorization: `Bearer ${getToken()}`,
+        "Content-Type": "application/json"
+    };
+}
 
-// ── Mock data ────────────────────────────────────────────────────────────────
+// ── Public API ────────────────────────────────────────────────────────────────
 
-const MOCK_DOCTORS = [
-    {
-        id: "doc-1",
-        fullName: "Dr. Sarah Jenkins",
-        specialty: "General Dentistry",
-        bio: "Experienced general dentist focusing on preventative care and patient...",
-        isActive: true,
-        avatarUrl: null, // null → render initials
-        initials: "SJ",
-    },
-    {
-        id: "doc-2",
-        fullName: "Dr. Marcus Chen",
-        specialty: "Orthodontics",
-        bio: "Specializes in modern orthodontic treatments including clear aligners...",
-        isActive: true,
-        avatarUrl: null,
-        initials: "MC",
-    },
-    {
-        id: "doc-3",
-        fullName: "Dr. Robert Sterling",
-        specialty: "Oral Surgery",
-        bio: "Board-certified oral and maxillofacial surgeon. Expert in complex...",
-        isActive: false,
-        avatarUrl: null,
-        initials: "RS",
-    },
-];
+/** Fetch the list of doctors for this clinic. */
+export async function fetchDoctors() {
+    const res = await fetch(`${BASE_URL}/doctors`, { headers: authHeaders() });
+    if (!res.ok) throw new Error("Failed to fetch doctors");
+    const data = await res.json();
+    return data.map(d => ({
+        ...d,
+        id: d.doctorUserId, // Map backend's doctorUserId to id for UI compatibility
+    }));
+}
 
-const SPECIALTIES = [
-    "General Dentistry",
-    "Orthodontics",
-    "Oral Surgery",
-    "Periodontics",
-    "Endodontics",
-    "Pediatric Dentistry",
-    "Prosthodontics",
-    "Cosmetic Dentistry",
-];
+/** Fetch the list of available specialties. */
+export async function fetchSpecialties() {
+    const res = await fetch(`${BASE_URL}/specialties`, { headers: authHeaders() });
+    if (!res.ok) throw new Error("Failed to fetch specialties");
+    const data = await res.json();
+    // Assuming backend returns an array of objects with a name/specialtyName field
+    // Map to just strings for the UI
+    return data.map(s => s.name || s.specialtyName || s);
+}
 
-function generateMockSchedule() {
-    const hours = ["10:00", "11:00", "12:00", "1:00", "2:00", "3:00", "4:00", "5:00"];
+/** Add a new doctor profile. Returns the created doctor object. */
+export async function addDoctor({ fullName, specialty, bio }) {
+    // Generate dummy credentials since they aren't on the UI yet
+    const email = `${fullName.replace(/\s+/g, '').toLowerCase()}.${Date.now()}@drsna.dummy`;
+    const password = 'Password@123'; // Must meet backend validation
 
-    // Build 7 consecutive days starting from today
+    const res = await fetch(`${BASE_URL}/doctors`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ fullName, email, password, specialty, bio }),
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let errMsg = "Failed to add doctor";
+        try {
+            const errData = JSON.parse(text);
+            errMsg = errData.message || errMsg;
+            if (errData.validationErrors && errData.validationErrors.length > 0) {
+                errMsg += ": " + errData.validationErrors.join(", ");
+            }
+        } catch {
+            errMsg += ` (Status ${res.status}): ${text.substring(0, 100)}`;
+        }
+        throw new Error(errMsg);
+    }
+    const created = await res.json();
+    return { ...created, id: created.doctorUserId };
+}
+
+/** Update an existing doctor's profile. Returns the updated doctor. */
+export async function updateDoctor(doctorId, { fullName, specialty, bio }) {
+    if (!doctorId) throw new Error("Doctor ID is missing. Please refresh the page.");
+    const res = await fetch(`${BASE_URL}/doctors/${doctorId}`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ fullName, specialty, bio }),
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let errMsg = "Failed to update doctor";
+        try {
+            const errData = JSON.parse(text);
+            errMsg = errData.message || errMsg;
+            if (errData.validationErrors && errData.validationErrors.length > 0) {
+                errMsg += ": " + errData.validationErrors.join(", ");
+            }
+        } catch {
+            errMsg += ` (Status ${res.status}): ${text.substring(0, 100)}`;
+        }
+        throw new Error(errMsg);
+    }
+    const updated = await res.json();
+    return { ...updated, id: updated.doctorUserId };
+}
+
+/** Toggle a doctor's active status. Returns the updated doctor. */
+export async function toggleDoctorStatus(doctorId, isActive) {
+    if (!doctorId) throw new Error("Doctor ID is missing. Please refresh the page.");
+    const res = await fetch(`${BASE_URL}/doctors/${doctorId}/toggle-status`, {
+        method: "PATCH",
+        headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to toggle status");
+    const updated = await res.json();
+    return { ...updated, id: updated.doctorUserId };
+}
+
+/** Fetch working-hour schedule for a doctor. */
+export async function fetchDoctorSchedule(doctorId) {
+    const res = await fetch(`${BASE_URL}/schedules/doctor-schedule/${doctorId}`, {
+        headers: authHeaders()
+    });
+    if (!res.ok) throw new Error("Failed to fetch schedule");
+    const savedSchedules = await res.json();
+
+    // Map backend schedules to the 7-day format expected by UI
     const today = new Date();
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -77,154 +130,69 @@ function generateMockSchedule() {
         return `${dayNames[d.getDay()]}, ${monthNames[d.getMonth()]} ${d.getDate()}`;
     }
 
-    // Pre-defined slot statuses for the 3 configured days to look realistic
-    const configuredSlots = {
-        0: ["open", "booked", "open", "resting", "resting", "resting", "resting", "resting"],
-        1: ["open", "booked", "open", "resting", "resting", "resting", "resting", "resting"],
-        2: ["open", "open", "resting", "open", "resting", "resting", "resting", "resting"],
+    const javaDayOfWeekToJs = {
+        SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6
     };
 
     return Array.from({ length: 7 }, (_, i) => {
-        const configured = i < 3;
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        const jsDay = d.getDay();
+
+        // Find if backend has a schedule for this dayOfWeek
+        const backendDay = savedSchedules.find(s => javaDayOfWeekToJs[s.dayOfWeek] === jsDay);
+
         return {
             dayLabel: labelForOffset(i),
-            configured,
-            slots: hours.map((time, si) => ({
-                time,
-                status: configured ? (configuredSlots[i][si] || "resting") : "resting",
-            })),
+            jsDay: jsDay, // Keep this for saving later
+            isActive: !!backendDay,
+            startTime: backendDay?.startTime ? backendDay.startTime.substring(0, 5) : "",
+            endTime: backendDay?.endTime ? backendDay.endTime.substring(0, 5) : "",
         };
     });
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
-
-/** Fetch the list of doctors for this clinic. */
-export async function fetchDoctors() {
-    // TODO: Replace with real API call
-    // const res = await fetch(BASE_URL, { headers: authHeaders() });
-    // if (!res.ok) throw new Error("Failed to fetch doctors");
-    // return res.json();
-
-    return new Promise((resolve) =>
-        setTimeout(() => resolve([...MOCK_DOCTORS]), 300)
-    );
+/** Update the overall shift schedule for a specific day. */
+export async function saveDoctorSchedule(doctorId, dayOfWeekStr, startTime, endTime) {
+    const res = await fetch(`${BASE_URL}/schedules/doctor-schedule`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+            doctorId,
+            dayOfWeek: dayOfWeekStr, // e.g. "MONDAY"
+            startTime, // e.g. "09:00:00"
+            endTime,
+        }),
+    });
+    if (!res.ok) throw new Error("Failed to save schedule");
+    return res.json();
 }
 
-/** Fetch the list of available specialties. */
-export async function fetchSpecialties() {
-    // TODO: Replace with real API call
-    return new Promise((resolve) =>
-        setTimeout(() => resolve([...SPECIALTIES]), 100)
-    );
+/** Delete a specific day's shift schedule. */
+export async function deleteDoctorSchedule(doctorId, dayOfWeekStr) {
+    const res = await fetch(`${BASE_URL}/schedules/doctor-schedule?doctorId=${doctorId}&dayOfWeek=${dayOfWeekStr}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to delete schedule");
 }
 
-/** Add a new doctor profile. Returns the created doctor object. */
-export async function addDoctor({ fullName, specialty, bio }) {
-    // TODO: Replace with real API call
-    // const res = await fetch(BASE_URL, {
-    //     method: "POST",
-    //     headers: authHeaders(),
-    //     body: JSON.stringify({ fullName, specialty, bio }),
-    // });
-    // if (!res.ok) throw new Error("Failed to add doctor");
-    // return res.json();
-
-    return new Promise((resolve) =>
-        setTimeout(() => {
-            const initials = fullName
-                .split(" ")
-                .filter((p) => p.length > 0)
-                .map((p) => p[0].toUpperCase())
-                .slice(0, 2)
-                .join("");
-
-            resolve({
-                id: `doc-${Date.now()}`,
-                fullName,
-                specialty,
-                bio,
-                isActive: true,
-                avatarUrl: null,
-                initials,
-            });
-        }, 400)
-    );
-}
-
-/** Update an existing doctor's profile. Returns the updated doctor. */
-export async function updateDoctor(doctorId, { fullName, specialty, bio }) {
-    // TODO: Replace with real API call
-    // const res = await fetch(`${BASE_URL}/${doctorId}`, {
-    //     method: "PUT",
-    //     headers: authHeaders(),
-    //     body: JSON.stringify({ fullName, specialty, bio }),
-    // });
-    // if (!res.ok) throw new Error("Failed to update doctor");
-    // return res.json();
-
-    return new Promise((resolve) =>
-        setTimeout(() => {
-            const initials = fullName
-                .split(" ")
-                .filter((p) => p.length > 0)
-                .map((p) => p[0].toUpperCase())
-                .slice(0, 2)
-                .join("");
-
-            resolve({
-                id: doctorId,
-                fullName,
-                specialty,
-                bio,
-                isActive: true,
-                avatarUrl: null,
-                initials,
-            });
-        }, 400)
-    );
-}
-
-/** Toggle a doctor's active status. Returns the updated doctor. */
-export async function toggleDoctorStatus(doctorId, isActive) {
-    // TODO: Replace with real API call
-    // const res = await fetch(`${BASE_URL}/${doctorId}/status`, {
-    //     method: "PATCH",
-    //     headers: authHeaders(),
-    //     body: JSON.stringify({ isActive }),
-    // });
-    // if (!res.ok) throw new Error("Failed to toggle status");
-    // return res.json();
-
-    return new Promise((resolve) =>
-        setTimeout(() => resolve({ id: doctorId, isActive }), 300)
-    );
-}
-
-/** Fetch working-hour schedule for a doctor. */
-export async function fetchDoctorSchedule(doctorId) {
-    // TODO: Replace with real API call
-    // const res = await fetch(`${BASE_URL}/${doctorId}/schedule`, { headers: authHeaders() });
-    // if (!res.ok) throw new Error("Failed to fetch schedule");
-    // return res.json();
-
-    return new Promise((resolve) =>
-        setTimeout(() => resolve(generateMockSchedule()), 300)
-    );
-}
-
-/** Update a specific slot's status in a doctor's schedule. */
-export async function updateSlotStatus(doctorId, dayIndex, slotIndex, newStatus) {
-    // TODO: Replace with real API call
-    // const res = await fetch(`${BASE_URL}/${doctorId}/schedule`, {
-    //     method: "PATCH",
-    //     headers: authHeaders(),
-    //     body: JSON.stringify({ dayIndex, slotIndex, status: newStatus }),
-    // });
-    // if (!res.ok) throw new Error("Failed to update slot");
-    // return res.json();
-
-    return new Promise((resolve) =>
-        setTimeout(() => resolve({ success: true }), 200)
-    );
+/** Delete a doctor from the clinic. */
+export async function deleteDoctor(doctorId) {
+    if (!doctorId) throw new Error("Doctor ID is missing. Please refresh the page.");
+    const res = await fetch(`${BASE_URL}/doctors/${doctorId}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let errMsg = "Failed to delete doctor";
+        try {
+            const errData = JSON.parse(text);
+            errMsg = errData.message || errMsg;
+        } catch {
+            errMsg += ` (Status ${res.status}): ${text.substring(0, 100)}`;
+        }
+        throw new Error(errMsg);
+    }
 }

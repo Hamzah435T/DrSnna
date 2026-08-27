@@ -9,7 +9,7 @@ export default function ClinicDashboard() {
             <ClinicSidebar />
 
             {/* Main Content Area */}
-            <main className="flex-1 p-8 overflow-y-auto">
+            <main className="flex-1 p-8">
                 <Outlet />
             </main>
         </div>

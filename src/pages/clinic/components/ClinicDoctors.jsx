@@ -5,8 +5,10 @@ import {
     addDoctor,
     updateDoctor,
     toggleDoctorStatus,
+    deleteDoctor,
     fetchDoctorSchedule,
-    updateSlotStatus,
+    saveDoctorSchedule,
+    deleteDoctorSchedule,
 } from "../../../api/clinicDoctorsApi";
 
 /**
@@ -105,10 +107,11 @@ export default function ClinicDoctors() {
                 const created = await addDoctor({ fullName, specialty, bio });
                 setDoctors((prev) => [...prev, created]);
             }
+            setProfileModal({ open: false, editingDoctor: null });
         } catch (err) {
             console.error("Save failed:", err);
+            alert(err.message);
         }
-        setProfileModal({ open: false, editingDoctor: null });
     }
 
     async function handleToggleStatus(doctor) {
@@ -122,6 +125,7 @@ export default function ClinicDoctors() {
             );
         } catch (err) {
             console.error("Toggle status failed:", err);
+            alert(err.message);
         }
     }
 
@@ -130,9 +134,15 @@ export default function ClinicDoctors() {
         setDeleteModal({ open: true, doctor });
     }
 
-    function confirmDelete() {
+    async function confirmDelete() {
         if (deleteModal.doctor) {
-            setDoctors((prev) => prev.filter((d) => d.id !== deleteModal.doctor.id));
+            try {
+                await deleteDoctor(deleteModal.doctor.id);
+                setDoctors((prev) => prev.filter((d) => d.id !== deleteModal.doctor.id));
+            } catch (err) {
+                console.error("Failed to delete doctor:", err);
+                alert(err.message);
+            }
         }
         setDeleteModal({ open: false, doctor: null });
     }
@@ -152,49 +162,61 @@ export default function ClinicDoctors() {
         }
     }
 
-    async function handleSlotToggle(dayIndex, slotIndex) {
-        const day = scheduleModal.schedule[dayIndex];
-        // Only allow toggling on configured days
-        if (!day.configured) return;
-
-        const currentStatus = day.slots[slotIndex].status;
-        // Booked slots cannot be changed
-        if (currentStatus === "booked") return;
-
-        const newStatus = currentStatus === "open" ? "resting" : "open";
-
-        try {
-            await updateSlotStatus(scheduleModal.doctorId, dayIndex, slotIndex, newStatus);
-            setScheduleModal((prev) => {
-                const updatedSchedule = prev.schedule.map((d, di) => {
-                    if (di !== dayIndex) return d;
-                    return {
-                        ...d,
-                        slots: d.slots.map((slot, si) =>
-                            si === slotIndex ? { ...slot, status: newStatus } : slot
-                        ),
-                    };
-                });
-                return { ...prev, schedule: updatedSchedule };
-            });
-        } catch (err) {
-            console.error("Slot update failed:", err);
-        }
-    }
-
-    function handleConfigureDay(dayIndex) {
+    function handleDayToggle(dayIndex) {
         setScheduleModal((prev) => {
             const updatedSchedule = prev.schedule.map((day, di) => {
                 if (di !== dayIndex) return day;
-                // Mark as configured; all slots default to resting
                 return {
                     ...day,
-                    configured: true,
-                    slots: day.slots.map((slot) => ({ ...slot, status: "resting" })),
+                    isActive: !day.isActive,
+                    // If newly activated and empty, set some defaults
+                    startTime: !day.isActive && !day.startTime ? "09:00" : day.startTime,
+                    endTime: !day.isActive && !day.endTime ? "17:00" : day.endTime,
                 };
             });
             return { ...prev, schedule: updatedSchedule };
         });
+    }
+
+    function handleTimeChange(dayIndex, field, value) {
+        setScheduleModal((prev) => {
+            const updatedSchedule = prev.schedule.map((day, di) => {
+                if (di !== dayIndex) return day;
+                return { ...day, [field]: value };
+            });
+            return { ...prev, schedule: updatedSchedule };
+        });
+    }
+
+    async function handleScheduleSave() {
+        const jsDayToJavaDay = {
+            0: "SUNDAY", 1: "MONDAY", 2: "TUESDAY", 3: "WEDNESDAY", 4: "THURSDAY", 5: "FRIDAY", 6: "SATURDAY"
+        };
+
+        try {
+            const savePromises = scheduleModal.schedule.map(day => {
+                const dayOfWeekStr = jsDayToJavaDay[day.jsDay];
+
+                if (day.isActive && day.startTime && day.endTime) {
+                    // Append :00 to match LocalTime expected format
+                    const startTimeStr = day.startTime.length === 5 ? `${day.startTime}:00` : day.startTime;
+                    const endTimeStr = day.endTime.length === 5 ? `${day.endTime}:00` : day.endTime;
+                    return saveDoctorSchedule(scheduleModal.doctorId, dayOfWeekStr, startTimeStr, endTimeStr);
+                } else {
+                    // Delete the schedule for this day if it's marked inactive
+                    // Catch errors in case it doesn't exist on the backend yet
+                    return deleteDoctorSchedule(scheduleModal.doctorId, dayOfWeekStr).catch(() => { });
+                }
+            });
+
+            await Promise.all(savePromises);
+            setScheduleModal({ open: false, doctorId: null, doctorName: "", schedule: [] });
+
+            // Optionally could show a success toast here
+        } catch (err) {
+            console.error("Failed to save schedule:", err);
+            // Optionally show error toast here
+        }
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -274,8 +296,9 @@ export default function ClinicDoctors() {
                 <ScheduleModal
                     doctorName={scheduleModal.doctorName}
                     schedule={scheduleModal.schedule}
-                    onSlotToggle={handleSlotToggle}
-                    onConfigureDay={handleConfigureDay}
+                    onDayToggle={handleDayToggle}
+                    onTimeChange={handleTimeChange}
+                    onSave={handleScheduleSave}
                     onClose={() =>
                         setScheduleModal({ open: false, doctorId: null, doctorName: "", schedule: [] })
                     }
@@ -489,20 +512,30 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
                 {/* Specialty */}
                 <label className="block mb-4">
                     <span className="text-xs font-semibold text-blue-700 mb-1 block">Specialty</span>
-                    <div className="relative">
-                        <select
+                    {specialties && specialties.length > 0 ? (
+                        <div className="relative">
+                            <select
+                                value={specialty}
+                                onChange={(e) => setSpecialty(e.target.value)}
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all cursor-pointer"
+                            >
+                                {specialties.map((s) => (
+                                    <option key={s} value={s}>
+                                        {s}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                        </div>
+                    ) : (
+                        <input
+                            type="text"
                             value={specialty}
                             onChange={(e) => setSpecialty(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all cursor-pointer"
-                        >
-                            {specialties.map((s) => (
-                                <option key={s} value={s}>
-                                    {s}
-                                </option>
-                            ))}
-                        </select>
-                        <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
-                    </div>
+                            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+                            placeholder="e.g. General Dentistry (Type to add manually)"
+                        />
+                    )}
                 </label>
 
                 {/* Brief Bio */}
@@ -541,23 +574,16 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
 
 
 /** ─── Schedule / Working Hours Modal ─── */
-function ScheduleModal({ doctorName, schedule, onSlotToggle, onConfigureDay, onClose }) {
-    const configuredDays = schedule
-        .map((day, idx) => ({ ...day, originalIndex: idx }))
-        .filter((day) => day.configured);
-    const pendingDays = schedule
-        .map((day, idx) => ({ ...day, originalIndex: idx }))
-        .filter((day) => !day.configured);
-
+function ScheduleModal({ doctorName, schedule, onDayToggle, onTimeChange, onSave, onClose }) {
     return (
         <ModalBackdrop onClose={onClose}>
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-[680px] mx-4 p-7 animate-[scaleIn_0.2s_ease-out]"
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-[500px] mx-4 p-7 animate-[scaleIn_0.2s_ease-out] flex flex-col max-h-[90vh]"
             >
                 {/* Header */}
-                <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-lg font-bold text-gray-900">Manage Working Hours</h2>
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+                    <h2 className="text-xl font-bold text-gray-900 tracking-tight">Manage Working Hours</h2>
                     <button
                         onClick={onClose}
                         className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100 cursor-pointer"
@@ -566,110 +592,86 @@ function ScheduleModal({ doctorName, schedule, onSlotToggle, onConfigureDay, onC
                     </button>
                 </div>
 
-                <div className="max-h-[520px] overflow-y-auto pr-1">
-                    {/* ── Configured Days Section ── */}
-                    <div className="mb-2">
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Configured Days</h3>
-                        {configuredDays.length === 0 ? (
-                            <p className="text-sm text-gray-400 italic mb-4">No days configured yet.</p>
-                        ) : (
-                            <div className="space-y-5">
-                                {configuredDays.map((day) => (
-                                    <div key={day.dayLabel} className="animate-[slideDown_0.3s_ease-out]">
-                                        <h4 className="text-sm font-bold text-gray-900 mb-2.5">{day.dayLabel}</h4>
-                                        <div className="flex flex-wrap gap-2">
-                                            {day.slots.map((slot, slotIndex) => {
-                                                const isBooked = slot.status === "booked";
-                                                const isOpen = slot.status === "open";
-                                                // const isResting = slot.status === "resting";
-
-                                                let colorClasses;
-                                                if (isBooked) {
-                                                    colorClasses = "bg-red-50 border-red-300 text-red-600 cursor-not-allowed";
-                                                } else if (isOpen) {
-                                                    colorClasses = "bg-blue-500 border-blue-500 text-white hover:bg-blue-600 cursor-pointer";
-                                                } else {
-                                                    // resting
-                                                    colorClasses = "bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200 cursor-pointer";
-                                                }
-
-                                                return (
-                                                    <button
-                                                        key={slot.time}
-                                                        onClick={() => onSlotToggle(day.originalIndex, slotIndex)}
-                                                        disabled={isBooked}
-                                                        className={`min-w-[68px] px-2.5 py-2 rounded-lg text-center transition-all duration-200 border ${colorClasses}`}
-                                                    >
-                                                        <span className="block text-sm font-semibold">{slot.time}</span>
-                                                        <span className="block text-[10px] font-medium mt-0.5">
-                                                            {isBooked ? "Booked" : isOpen ? "Open" : "Resting"}
-                                                        </span>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
+                <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
+                    {schedule.map((day, dayIndex) => (
+                        <div
+                            key={day.dayLabel}
+                            className={`rounded-xl border ${day.isActive ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50/50'} p-5 transition-colors`}
+                        >
+                            {/* Day Header (Label + Toggle) */}
+                            <div className="flex items-center justify-between mb-4">
+                                <span className={`text-base font-bold ${day.isActive ? 'text-gray-900' : 'text-gray-400'}`}>
+                                    {day.dayLabel}
+                                </span>
+                                <div className="flex items-center gap-3">
+                                    <span className={`text-sm font-medium ${day.isActive ? 'text-gray-700' : 'text-gray-400'}`}>
+                                        {day.isActive ? 'Active' : 'Inactive'}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => onDayToggle(dayIndex)}
+                                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${day.isActive ? 'bg-blue-600' : 'bg-gray-200'}`}
+                                    >
+                                        <span
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${day.isActive ? 'translate-x-5' : 'translate-x-0'}`}
+                                        />
+                                    </button>
+                                </div>
                             </div>
-                        )}
-                    </div>
 
-                    {/* ── Divider ── */}
-                    {pendingDays.length > 0 && (
-                        <div className="border-t border-gray-200 my-5" />
-                    )}
-
-                    {/* ── Pending Setup Section ── */}
-                    {pendingDays.length > 0 && (
-                        <div>
-                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Pending Setup</h3>
-                            <div className="space-y-5">
-                                {pendingDays.map((day) => (
-                                    <div key={day.dayLabel}>
-                                        {/* Day header row */}
-                                        <div className="flex items-center justify-between mb-2.5">
-                                            <div className="flex items-center gap-3">
-                                                <h4 className="text-sm font-bold text-gray-900">{day.dayLabel}</h4>
-                                                <span className="text-xs text-gray-400 italic">Working hours not set for this day yet</span>
-                                            </div>
-                                            <button
-                                                onClick={() => onConfigureDay(day.originalIndex)}
-                                                className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors cursor-pointer px-3 py-1.5 rounded-lg hover:bg-blue-50"
-                                            >
-                                                <PlusCircleIcon />
-                                                Configure Schedule
-                                            </button>
-                                        </div>
-                                        {/* Disabled/faded slots preview */}
-                                        <div className="flex flex-wrap gap-2 opacity-40">
-                                            {day.slots.map((slot) => (
-                                                <div
-                                                    key={slot.time}
-                                                    className="min-w-[68px] px-2.5 py-2 rounded-lg text-center border border-dashed border-gray-300 bg-gray-50 text-gray-400"
-                                                >
-                                                    <span className="block text-sm font-semibold">{slot.time}</span>
-                                                    <span className="block text-[10px] font-medium mt-0.5">--</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
+                            {/* Time Inputs */}
+                            <div className="flex gap-4">
+                                {/* Start Time */}
+                                <div className="flex-1">
+                                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
+                                        <ClockIconSmall /> Start Time
+                                    </label>
+                                    <input
+                                        type="time"
+                                        disabled={!day.isActive}
+                                        value={day.startTime || ""}
+                                        onChange={(e) => onTimeChange(dayIndex, 'startTime', e.target.value)}
+                                        className={`w-full rounded-lg border ${day.isActive ? 'border-gray-300 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500' : 'border-gray-200 text-gray-400 bg-gray-100'} px-3 py-2 text-sm transition-all outline-none`}
+                                    />
+                                </div>
+                                {/* End Time */}
+                                <div className="flex-1">
+                                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
+                                        <ClockIconSmall /> End Time
+                                    </label>
+                                    <input
+                                        type="time"
+                                        disabled={!day.isActive}
+                                        value={day.endTime || ""}
+                                        onChange={(e) => onTimeChange(dayIndex, 'endTime', e.target.value)}
+                                        className={`w-full rounded-lg border ${day.isActive ? 'border-gray-300 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500' : 'border-gray-200 text-gray-400 bg-gray-100'} px-3 py-2 text-sm transition-all outline-none`}
+                                    />
+                                </div>
                             </div>
                         </div>
-                    )}
+                    ))}
                 </div>
 
-                {/* Save Changes button */}
-                <div className="flex justify-end mt-6">
+                {/* Footer Action */}
+                <div className="mt-6 pt-5 border-t border-gray-100 flex justify-end">
                     <button
-                        onClick={onClose}
-                        className="px-8 py-2.5 text-sm font-semibold text-white bg-blue-900 rounded-lg hover:bg-blue-800 transition-colors shadow-md shadow-blue-900/20 cursor-pointer"
+                        onClick={onSave}
+                        className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0f3460] rounded-lg hover:bg-[#1a4a85] transition-colors shadow-md cursor-pointer"
                     >
                         Save Changes
                     </button>
                 </div>
             </div>
         </ModalBackdrop>
+    );
+}
+
+function ClockIconSmall() {
+    return (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+        </svg>
     );
 }
 

@@ -10,7 +10,7 @@ export default function Register() {
         <div className="flex min-h-screen w-full bg-white font-sans text-slate-800">
             {/* القسم الأيسر: الهوية البصرية (5/12) */}
             <div className="relative hidden w-5/12 flex-col justify-between overflow-hidden p-12 text-white lg:flex bg-cover bg-center"
-                 style={{ backgroundImage: "url('/bg.png')" }}>
+                style={{ backgroundImage: "url('/bg.png')" }}>
 
                 {/* Overlay لدمج اللون الأزرق مع الصورة وجعل النص واضح */}
                 <div className="absolute inset-0 bg-blue-500/70 backdrop-blur-[2px]" />
@@ -67,11 +67,10 @@ export default function Register() {
                         <button
                             type="button"
                             onClick={() => setMode("PATIENT")}
-                            className={`flex-1 rounded-md py-2.5 text-center transition-all cursor-pointer ${
-                                mode === "PATIENT"
+                            className={`flex-1 rounded-md py-2.5 text-center transition-all cursor-pointer ${mode === "PATIENT"
                                     ? "bg-white text-slate-900 shadow-sm font-semibold"
                                     : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
-                            }`}
+                                }`}
                         >
                             Patient
                         </button>
@@ -79,11 +78,10 @@ export default function Register() {
                         <button
                             type="button"
                             onClick={() => setMode("CLINIC")}
-                            className={`flex-1 rounded-md py-2.5 text-center transition-all cursor-pointer ${
-                                mode === "CLINIC"
+                            className={`flex-1 rounded-md py-2.5 text-center transition-all cursor-pointer ${mode === "CLINIC"
                                     ? "bg-white text-slate-900 shadow-sm font-semibold"
                                     : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
-                            }`}
+                                }`}
                         >
                             Clinic
                         </button>
@@ -185,15 +183,15 @@ export default function Register() {
                                 <option value="AMMAN">Amman</option>
                                 <option value="IRBID">Irbid</option>
                                 <option value="ZARQA">Zarqa</option>
-                                <option value="Balqa">Balqa</option>
-                                <option value="Mafraq">Mafraq</option>
-                                <option value="Karak">Karak</option>
-                                <option value="Madaba">Madaba</option>
-                                <option value="Maan">Maan</option>
-                                <option value="Tafelah">Tafelah</option>
-                                <option value="Jerash">Jerash</option>
-                                <option value="Ajloun">Ajloun</option>
-                                <option value="AQABA">AQABA</option>
+                                <option value="MAFRAQ">Mafraq</option>
+                                <option value="AJLOUN">Ajloun</option>
+                                <option value="JERASH">Jerash</option>
+                                <option value="MADABA">Madaba</option>
+                                <option value="BALQA">Balqa</option>
+                                <option value="KARAK">Karak</option>
+                                <option value="TAFILEH">Tafelah</option>
+                                <option value="MAAN">Maan</option>
+                                <option value="AQABA">Aqaba</option>
                             </select>
                         </div>
 

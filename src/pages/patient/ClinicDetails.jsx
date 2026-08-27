@@ -381,7 +381,7 @@ export default function ClinicDetails() {
                 <section className="cd-doctors-section" id="our-doctors">
                     <h2 className="cd-section-title">Our Doctors</h2>
                     <div className="cd-doctors-list">
-                        {doctorsData.map((doc) => (
+                        {doctorsData.filter(doc => doc.isActive !== false).map((doc) => (
                             <DoctorCard
                                 key={doc.id}
                                 doctor={doc}
