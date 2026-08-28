@@ -16,123 +16,21 @@ import {
   Calendar
 } from 'lucide-react';
 
-/**
- * High-Performance Clinic Data Schema (WebP Images ~14KB)
- */
-const MOCK_CLINICS = [
-  {
-    clinic_id: "amman-smile-care",
-    name: "Amman Smile Dental Center",
-    doctor: "Dr. Doha Ziad Dabobash",
-    city: "Amman",
-    address: "7th Circle, Zahran St., Amman",
-    specialty: "Orthodontics",
-    rating: 5.0,
-    reviewCount: 142,
-    fee: 25,
-    workingHours: "09:00 AM - 07:00 PM",
-    description: "Digital orthodontics & 3D smile design studio.",
-    services: ["Invisible Aligners", "3D Scan", "Teeth Cleaning"],
-    availableToday: true,
-    slots: ["Today 04:30 PM", "Tomorrow 11:00 AM"],
-    image: "/clinic1.webp"
-  },
-  {
-    clinic_id: "irbid-royal-dental",
-    name: "Irbid Royal Smiles Center",
-    doctor: "Dr. Samar Taha",
-    city: "Irbid",
-    address: "University St, near Yarmouk Univ, Irbid",
-    specialty: "Cosmetic Dentistry",
-    rating: 3,
-    reviewCount: 98,
-    fee: 20,
-    workingHours: "10:00 AM - 08:00 PM",
-    description: "Laser teeth whitening & aesthetic porcelain veneers.",
-    services: ["Laser Whitening", "Veneers", "Smile Design"],
-    availableToday: true,
-    slots: ["Today 03:00 PM", "Tomorrow 02:00 PM"],
-    image: "/clinic2.webp"
-  },
-  {
-    clinic_id: "amman-hollywood-smile",
-    name: "Crown & Hollywood Smile Lab",
-    doctor: "Dr. Khaled Omar",
-    city: "Amman",
-    address: "Abdoun Circle, Amman",
-    specialty: "Teeth Whitening",
-    rating: 4.7,
-    reviewCount: 210,
-    fee: 40,
-    workingHours: "10:00 AM - 08:00 PM",
-    description: "Zoom 4 LED teeth whitening & digital smile design.",
-    services: ["Zoom Whitening", "Lumineers", "Gummy Lift"],
-    availableToday: true,
-    slots: ["Today 04:00 PM", "Tomorrow 01:30 PM"],
-    image: "/clinic6.webp"
-  },
-  {
-    clinic_id: "zarqa-family-care",
-    name: "Zarqa Pediatric & Family Care",
-    doctor: "Dr. Omar Khaled",
-    city: "Zarqa",
-    address: "36th Street, New Zarqa",
-    specialty: "Pediatric Dentistry",
-    rating: 2,
-    reviewCount: 85,
-    fee: 15,
-    workingHours: "09:00 AM - 06:00 PM",
-    description: "Gentle, anxiety-free pediatric and preventive dentistry.",
-    services: ["Pediatric Care", "Fluoride", "Space Maintainers"],
-    availableToday: false,
-    slots: ["Tomorrow 09:30 AM", "Aug 26 04:00 PM"],
-    image: "/clinic3.webp"
-  },
-  {
-    clinic_id: "aqaba-elite-implant",
-    name: "Aqaba Elite Dental & Implant Center",
-    doctor: "Dr. Saja Dabobash",
-    city: "Aqaba",
-    address: "Al-Saada St., Downtown Aqaba",
-    specialty: "Implants",
-    rating: 4.2,
-    reviewCount: 116,
-    fee: 35,
-    workingHours: "10:00 AM - 09:00 PM",
-    description: "Computer-guided implant surgery & arch restoration.",
-    services: ["Dental Implants", "CBCT Scan", "All-on-4"],
-    availableToday: true,
-    slots: ["Today 05:15 PM", "Tomorrow 12:00 PM"],
-    image: "/clinic4.webp"
-  },
-  {
-    clinic_id: "salt-heritage-dental",
-    name: "Salt Pearl Family Dental",
-    doctor: "Dr. Farah Qasim",
-    city: "Salt",
-    address: "Al-Meydan Square, Salt City Center",
-    specialty: "General Care",
-    rating: 1.5,
-    reviewCount: 64,
-    fee: 12,
-    workingHours: "08:30 AM - 05:30 PM",
-    description: "Comprehensive family care, root canals & crowns.",
-    services: ["Root Canal", "Zirconia Crowns", "Fillings"],
-    availableToday: false,
-    slots: ["Tomorrow 10:00 AM", "Aug 26 11:30 AM"],
-    image: "/clinic5.webp"
-  }
-];
+import { searchClinics } from '../api/patientApi';
 
-const CITIES = ["All Cities", "Amman", "Irbid", "Zarqa", "Aqaba", "Salt"];
-const SPECIALTIES = [
+const CITIES = [
+  "All Cities", "Amman", "Irbid", "Zarqa", "Aqaba", "Salt",
+  "Mafraq", "Ajloun", "Jerash", "Madaba", "Karak", "Tafilah", "Maan"
+];
+const DEFAULT_SPECIALTIES = [
   "All Specialties",
+  "General Dentistry",
   "Orthodontics",
+  "Oral Surgery",
   "Pediatric Dentistry",
-  "General Care",
-  "Implants",
+  "Periodontics",
   "Cosmetic Dentistry",
-  "Teeth Whitening"
+  "Endodontics"
 ];
 
 export default function PatientHomePage() {
@@ -145,8 +43,24 @@ export default function PatientHomePage() {
   const [selectedSpecialty, setSelectedSpecialty] = useState('All Specialties');
   const [availability, setAvailability] = useState('Anytime'); // 'Anytime' | 'Today'
   const [selectedStars, setSelectedStars] = useState(0); // 0 = All, 1..5 = Min Stars
-  const [maxFee, setMaxFee] = useState(50); // 10 - 50 JOD
-  const [sortBy, setSortBy] = useState('default'); // 'default' | 'rating' | 'fee'
+  const [clinics, setClinics] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const { minAvailableFee, maxAvailableFee } = useMemo(() => {
+    if (clinics.length === 0) return { minAvailableFee: 0, maxAvailableFee: 50 };
+    const fees = clinics.map(c => c.checkingFee || 0);
+    return {
+      minAvailableFee: Math.min(...fees),
+      maxAvailableFee: Math.max(...fees)
+    };
+  }, [clinics]);
+
+  const [maxFee, setMaxFee] = useState(50);
+  const [sortBy, setSortBy] = useState('default');
+
+  useEffect(() => {
+    setMaxFee(maxAvailableFee);
+  }, [maxAvailableFee]);
 
   // Optimized debounced search
   useEffect(() => {
@@ -164,7 +78,7 @@ export default function PatientHomePage() {
     setSelectedSpecialty('All Specialties');
     setAvailability('Anytime');
     setSelectedStars(0);
-    setMaxFee(50);
+    setMaxFee(maxAvailableFee);
     setSortBy('default');
   };
 
@@ -176,45 +90,83 @@ export default function PatientHomePage() {
     if (selectedSpecialty !== 'All Specialties') count++;
     if (availability !== 'Anytime') count++;
     if (selectedStars > 0) count++;
-    if (maxFee < 50) count++;
+    if (maxFee < maxAvailableFee) count++;
     if (sortBy !== 'default') count++;
     return count;
-  }, [debouncedSearch, selectedCity, selectedSpecialty, availability, selectedStars, maxFee, sortBy]);
+  }, [debouncedSearch, selectedCity, selectedSpecialty, availability, selectedStars, maxFee, sortBy, maxAvailableFee]);
+
+  // Accumulate custom specialties so they don't disappear when clinics are filtered
+  const [customSpecialties, setCustomSpecialties] = useState(new Set());
+
+  useEffect(() => {
+    if (clinics.length > 0) {
+      setCustomSpecialties(prev => {
+        const nextSet = new Set(prev);
+        let added = false;
+        clinics.forEach(clinic => {
+          clinic.specialties?.forEach(spec => {
+            if (!DEFAULT_SPECIALTIES.includes(spec) && !nextSet.has(spec)) {
+              nextSet.add(spec);
+              added = true;
+            }
+          });
+        });
+        return added ? nextSet : prev;
+      });
+    }
+  }, [clinics]);
+
+  const dynamicSpecialties = useMemo(() => {
+    return [...DEFAULT_SPECIALTIES, ...Array.from(customSpecialties)];
+  }, [customSpecialties]);
+
+  // Fetch from API
+  useEffect(() => {
+    async function loadClinics() {
+      try {
+        setLoading(true);
+        
+        let dateParams = {};
+        if (availability === 'Today') {
+          const today = new Date();
+          // Format as YYYY-MM-DD in local time
+          const localIsoDate = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+          dateParams = {
+            date: localIsoDate,
+            availableOnly: true
+          };
+        }
+
+        const data = await searchClinics({
+          name: debouncedSearch,
+          city: selectedCity,
+          specialty: selectedSpecialty,
+          ...dateParams
+        });
+        setClinics(data);
+      } catch (err) {
+        console.error("Failed to load clinics:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadClinics();
+  }, [debouncedSearch, selectedCity, selectedSpecialty, availability]);
 
   // Fast Memoized Filtering
   const filteredClinics = useMemo(() => {
-    return MOCK_CLINICS.filter((clinic) => {
-      if (debouncedSearch) {
-        const query = debouncedSearch;
-        const matchesName = clinic.name.toLowerCase().includes(query);
-        const matchesDoctor = clinic.doctor.toLowerCase().includes(query);
-        const matchesSpecialty = clinic.specialty.toLowerCase().includes(query);
-        const matchesCity = clinic.city.toLowerCase().includes(query);
-        const matchesServices = clinic.services.some(s => s.toLowerCase().includes(query));
-
-        if (!matchesName && !matchesDoctor && !matchesSpecialty && !matchesCity && !matchesServices) {
-          return false;
-        }
-      }
-
-      if (selectedCity !== 'All Cities' && clinic.city !== selectedCity) return false;
-      if (selectedSpecialty !== 'All Specialties' && clinic.specialty !== selectedSpecialty) return false;
-      if (availability === 'Today' && !clinic.availableToday) return false;
-      if (selectedStars > 0 && clinic.rating < selectedStars) return false;
-      if (clinic.fee > maxFee) return false;
-
+    return clinics.filter((clinic) => {
+      if (clinic.checkingFee > maxFee) return false;
       return true;
     }).sort((a, b) => {
-      if (sortBy === 'rating') return b.rating - a.rating;
-      if (sortBy === 'fee') return a.fee - b.fee;
-      if (a.city === 'Amman' && b.city !== 'Amman') return -1;
-      if (b.city === 'Amman' && a.city !== 'Amman') return 1;
-      return b.rating - a.rating;
+      if (sortBy === 'fee') return (a.checkingFee || 0) - (b.checkingFee || 0);
+      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
+      return 0;
     });
-  }, [debouncedSearch, selectedCity, selectedSpecialty, availability, selectedStars, maxFee, sortBy]);
+  }, [clinics, maxFee, sortBy]);
 
-  const handleClinicClick = () => {
-    navigate('/clinic-details');
+  const handleClinicClick = (clinicId) => {
+    navigate(`/clinic-details/${clinicId}`);
   };
 
   const handleStarClick = (starCount) => {
@@ -298,7 +250,7 @@ export default function PatientHomePage() {
                 aria-label="Filter clinics by Dental Specialty"
                 className="w-full pl-8 pr-7 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-semibold text-slate-800 border border-slate-200 appearance-none focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer transition-all"
               >
-                {SPECIALTIES.map((spec) => (
+                {dynamicSpecialties.map((spec) => (
                   <option key={spec} value={spec}>
                     {spec === 'All Specialties' ? 'All Specialties' : spec}
                   </option>
@@ -342,8 +294,8 @@ export default function PatientHomePage() {
               <input
                 type="range"
                 id="fee-range-slider"
-                min="10"
-                max="50"
+                min={minAvailableFee}
+                max={maxAvailableFee}
                 step="5"
                 value={maxFee}
                 onChange={(e) => setMaxFee(Number(e.target.value))}
@@ -425,15 +377,15 @@ export default function PatientHomePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredClinics.map((clinic, cIdx) => (
               <article
-                key={clinic.clinic_id}
-                onClick={() => handleClinicClick()}
+                key={clinic.clinicId}
+                onClick={() => handleClinicClick(clinic.clinicId)}
                 className="group bg-white/70 backdrop-blur-md rounded-2xl border border-white/90 shadow-xs hover:shadow-xl hover:shadow-blue-500/10 hover:border-blue-200/90 hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden cursor-pointer backdrop-saturate-150"
               >
                 {/* LCP Priority High Performance Image */}
                 <div className="relative h-44 w-full overflow-hidden bg-slate-100 aspect-video">
                   <img
-                    src={clinic.image}
-                    alt={clinic.name}
+                    src={'/clinic1.webp'}
+                    alt={clinic.clinicName}
                     width="480"
                     height="270"
                     loading={cIdx === 0 ? "eager" : "lazy"}
@@ -446,20 +398,27 @@ export default function PatientHomePage() {
                   {/* Fee Pill */}
                   <div className="absolute top-2.5 left-2.5 bg-slate-900/75 backdrop-blur-md text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow-xs flex items-center gap-0.5 border border-white/20">
                     <DollarSign className="w-3 h-3 text-emerald-400" />
-                    <span>{clinic.fee} JOD</span>
+                    <span>{clinic.checkingFee} JOD</span>
                   </div>
 
                   {/* Rating Badge */}
                   <div className="absolute top-2.5 right-2.5 bg-white/85 backdrop-blur-md text-slate-900 px-2 py-0.5 rounded-full text-xs font-extrabold shadow-xs flex items-center gap-1 border border-white/60">
                     <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                    <span>{clinic.rating.toFixed(1)}</span>
+                    <span>{clinic.rating ? clinic.rating.toFixed(1) : "0.0"}</span>
                   </div>
 
-                  {/* Specialty Tag */}
-                  <div className="absolute bottom-2 left-2.5">
-                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-600 text-white shadow-xs">
-                      {clinic.specialty}
-                    </span>
+                  {/* Specialty Tags */}
+                  <div className="absolute bottom-2 left-2.5 flex flex-wrap items-center gap-1">
+                    {clinic.specialties?.slice(0, 3).map((spec, sIdx) => (
+                      <span key={sIdx} className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-blue-600 text-white shadow-xs">
+                        {spec}
+                      </span>
+                    ))}
+                    {clinic.specialties?.length > 3 && (
+                      <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-800/80 text-white shadow-xs backdrop-blur-sm">
+                        more...
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -468,34 +427,45 @@ export default function PatientHomePage() {
                   <div>
                     {/* Clinic Name */}
                     <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-tight line-clamp-1 mb-1">
-                      {clinic.name}
+                      {clinic.clinicName}
                     </h3>
 
-                    {/* Doctor Name */}
-                    <p className="text-[11px] font-bold text-slate-900 mb-2 flex items-center gap-1.5">
+                    {/* Doctor Names */}
+                    <div className="text-[11px] font-bold text-slate-900 mb-2 flex items-center gap-1.5 flex-wrap">
                       <User className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <span>{clinic.doctor}</span>
-                    </p>
+                      {clinic.doctors?.length > 0 ? (
+                        <>
+                          {clinic.doctors.slice(0, 2).map((doc, dIdx) => (
+                            <span key={dIdx}>{doc}{dIdx < clinic.doctors.length - 1 ? ', ' : ''}</span>
+                          ))}
+                          {clinic.doctors.length > 2 && (
+                            <span className="text-slate-500 font-semibold italic">more...</span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-slate-500 italic">No active doctors</span>
+                      )}
+                    </div>
 
                     {/* Address & Hours */}
                     <div className="space-y-1 text-[11px] text-slate-600 mb-2">
                       <div className="flex items-center gap-1.5">
                         <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                        <span className="line-clamp-1 font-medium">{clinic.address}</span>
+                        <span className="line-clamp-1 font-medium">{clinic.detailedAddress || "No address provided"}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                        <span className="font-medium">{clinic.workingHours}</span>
+                        <span className="font-medium">{clinic.workingHours || "Hours not set"}</span>
                       </div>
                     </div>
 
                     <p className="text-[11px] text-slate-500 line-clamp-1 mb-2.5">
-                      {clinic.description}
+                      {clinic.description || "No description available"}
                     </p>
 
                     {/* Service Badges */}
                     <div className="flex flex-wrap items-center gap-1">
-                      {clinic.services.slice(0, 2).map((srv, sIdx) => (
+                      {clinic.services?.slice(0, 2).map((srv, sIdx) => (
                         <span
                           key={sIdx}
                           className="px-2 py-0.5 rounded-md bg-blue-50/80 text-blue-700 text-[10px] font-semibold border border-blue-200/60 backdrop-blur-xs"
@@ -503,7 +473,7 @@ export default function PatientHomePage() {
                           {srv}
                         </span>
                       ))}
-                      {clinic.services.length > 2 && (
+                      {clinic.services?.length > 2 && (
                         <span className="px-1.5 py-0.5 rounded-md bg-slate-100/80 text-slate-600 text-[10px] font-bold border border-slate-200">
                           +{clinic.services.length - 2} More
                         </span>
@@ -512,16 +482,17 @@ export default function PatientHomePage() {
                   </div>
 
                   {/* Card Footer Action */}
-                  <div className="pt-2.5 border-t border-slate-200/60 flex items-center justify-between gap-2">
-                    <div className="text-[10px] font-semibold text-slate-500 flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                      <span className="text-blue-700 font-bold">{clinic.slots[0]}</span>
+                  <div className="pt-2.5 border-t border-slate-200/60 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-blue-600 [text-shadow:0_0_8px_theme(colors.blue.400/50)]">
+                      <Calendar className="w-3.5 h-3.5 shrink-0 drop-shadow-[0_0_4px_rgba(37,99,235,0.5)]" />
+                      <span className="font-bold text-[11px]">
+                        {clinic.nextAvailableSlot ? `Next available: ${clinic.nextAvailableSlot}` : "No upcoming slots"}
+                      </span>
                     </div>
-
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleClinicClick();
+                        handleClinicClick(clinic.clinicId);
                       }}
                       className="py-1.5 px-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-semibold rounded-lg text-xs flex items-center gap-1 shadow-2xs transition-all cursor-pointer"
                     >

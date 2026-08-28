@@ -10,6 +10,8 @@ import {
     saveDoctorSchedule,
     deleteDoctorSchedule,
 } from "../../../api/clinicDoctorsApi";
+import { fetchClinicHours } from "../../../api/clinicProfileApi";
+import ModernAlertModal from "../../../components/ModernAlertModal";
 
 /**
  * ClinicDoctors – Doctor Management page
@@ -25,6 +27,7 @@ export default function ClinicDoctors() {
     // ── State ────────────────────────────────────────────────────────────────
     const [doctors, setDoctors] = useState([]);
     const [specialties, setSpecialties] = useState([]);
+    const [clinicHours, setClinicHours] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Which card's 3-dot menu is open (doctorId or null)
@@ -49,16 +52,29 @@ export default function ClinicDoctors() {
         doctor: null,
     });
 
+    const [alertModal, setAlertModal] = useState({
+        open: false,
+        title: "",
+        message: "",
+        type: "error"
+    });
+
+    const showAlert = (message, title = "Action Failed", type = "error") => {
+        setAlertModal({ open: true, title, message, type });
+    };
+
     // ── Load data on mount ───────────────────────────────────────────────────
     useEffect(() => {
         async function load() {
             try {
-                const [docs, specs] = await Promise.all([
+                const [docs, specs, hours] = await Promise.all([
                     fetchDoctors(),
                     fetchSpecialties(),
+                    fetchClinicHours(),
                 ]);
                 setDoctors(docs);
                 setSpecialties(specs);
+                setClinicHours(hours);
             } catch (err) {
                 console.error("Failed to load doctors:", err);
             } finally {
@@ -110,22 +126,24 @@ export default function ClinicDoctors() {
             setProfileModal({ open: false, editingDoctor: null });
         } catch (err) {
             console.error("Save failed:", err);
-            alert(err.message);
+            showAlert(err.message, "Save Failed", "error");
         }
     }
 
     async function handleToggleStatus(doctor) {
         setOpenMenuId(null);
         try {
-            const result = await toggleDoctorStatus(doctor.id, !doctor.isActive);
+            const nextActive = !doctor.isActive;
+            const result = await toggleDoctorStatus(doctor.id, nextActive);
+            const resolvedActive = result?.isActive !== undefined ? result.isActive : nextActive;
             setDoctors((prev) =>
                 prev.map((d) =>
-                    d.id === result.id ? { ...d, isActive: result.isActive } : d
+                    d.id === doctor.id ? { ...d, isActive: resolvedActive } : d
                 )
             );
         } catch (err) {
             console.error("Toggle status failed:", err);
-            alert(err.message);
+            showAlert(err.message, "Status Update Failed", "error");
         }
     }
 
@@ -141,7 +159,7 @@ export default function ClinicDoctors() {
                 setDoctors((prev) => prev.filter((d) => d.id !== deleteModal.doctor.id));
             } catch (err) {
                 console.error("Failed to delete doctor:", err);
-                alert(err.message);
+                showAlert(err.message, "Delete Failed", "error");
             }
         }
         setDeleteModal({ open: false, doctor: null });
@@ -166,12 +184,21 @@ export default function ClinicDoctors() {
         setScheduleModal((prev) => {
             const updatedSchedule = prev.schedule.map((day, di) => {
                 if (di !== dayIndex) return day;
+
+                // Get default bounds based on clinic hours
+                const dateObj = new Date(day.isoDate);
+                const javaDays = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+                const dayOfWeekStr = javaDays[dateObj.getDay()];
+                const clinicDay = clinicHours.find(h => h.dayOfWeek === dayOfWeekStr);
+
+                const defaultStart = clinicDay ? clinicDay.startTime.substring(0, 5) : "09:00";
+                const defaultEnd = clinicDay ? clinicDay.endTime.substring(0, 5) : "17:00";
+
                 return {
                     ...day,
                     isActive: !day.isActive,
-                    // If newly activated and empty, set some defaults
-                    startTime: !day.isActive && !day.startTime ? "09:00" : day.startTime,
-                    endTime: !day.isActive && !day.endTime ? "17:00" : day.endTime,
+                    startTime: !day.isActive && !day.startTime ? defaultStart : day.startTime,
+                    endTime: !day.isActive && !day.endTime ? defaultEnd : day.endTime,
                 };
             });
             return { ...prev, schedule: updatedSchedule };
@@ -189,33 +216,28 @@ export default function ClinicDoctors() {
     }
 
     async function handleScheduleSave() {
-        const jsDayToJavaDay = {
-            0: "SUNDAY", 1: "MONDAY", 2: "TUESDAY", 3: "WEDNESDAY", 4: "THURSDAY", 5: "FRIDAY", 6: "SATURDAY"
-        };
-
         try {
             const savePromises = scheduleModal.schedule.map(day => {
-                const dayOfWeekStr = jsDayToJavaDay[day.jsDay];
+                const specificDateStr = day.isoDate;
 
                 if (day.isActive && day.startTime && day.endTime) {
                     // Append :00 to match LocalTime expected format
                     const startTimeStr = day.startTime.length === 5 ? `${day.startTime}:00` : day.startTime;
                     const endTimeStr = day.endTime.length === 5 ? `${day.endTime}:00` : day.endTime;
-                    return saveDoctorSchedule(scheduleModal.doctorId, dayOfWeekStr, startTimeStr, endTimeStr);
+                    return saveDoctorSchedule(scheduleModal.doctorId, specificDateStr, startTimeStr, endTimeStr);
                 } else {
                     // Delete the schedule for this day if it's marked inactive
                     // Catch errors in case it doesn't exist on the backend yet
-                    return deleteDoctorSchedule(scheduleModal.doctorId, dayOfWeekStr).catch(() => { });
+                    return deleteDoctorSchedule(scheduleModal.doctorId, specificDateStr).catch(() => { });
                 }
             });
 
             await Promise.all(savePromises);
             setScheduleModal({ open: false, doctorId: null, doctorName: "", schedule: [] });
-
             // Optionally could show a success toast here
         } catch (err) {
             console.error("Failed to save schedule:", err);
-            // Optionally show error toast here
+            showAlert(err.message, "Failed to Save Schedule", "error");
         }
     }
 
@@ -296,6 +318,7 @@ export default function ClinicDoctors() {
                 <ScheduleModal
                     doctorName={scheduleModal.doctorName}
                     schedule={scheduleModal.schedule}
+                    clinicHours={clinicHours}
                     onDayToggle={handleDayToggle}
                     onTimeChange={handleTimeChange}
                     onSave={handleScheduleSave}
@@ -314,6 +337,15 @@ export default function ClinicDoctors() {
                     onCancel={() => setDeleteModal({ open: false, doctor: null })}
                 />
             )}
+
+            {/* ─── Modern Alert Modal ─── */}
+            <ModernAlertModal
+                isOpen={alertModal.open}
+                title={alertModal.title}
+                message={alertModal.message}
+                type={alertModal.type}
+                onClose={() => setAlertModal(prev => ({ ...prev, open: false }))}
+            />
         </div>
     );
 }
@@ -328,12 +360,15 @@ function DoctorCard({ doctor, isMenuOpen, onToggleMenu, onEdit, onManageHours, o
     const menuRef = useRef(null);
 
     return (
-        <div className="relative bg-white rounded-2xl border border-gray-200/80 p-5 hover:shadow-lg hover:shadow-gray-200/60 transition-all duration-300 group">
+        <div className={`relative bg-white rounded-2xl border p-5 transition-all duration-300 group ${doctor.isActive
+            ? "border-gray-200/80 hover:shadow-lg hover:shadow-gray-200/60"
+            : "border-gray-200/60 bg-gray-50/40 hover:shadow-md"
+            }`}>
             {/* Top row: avatar + name + menu */}
             <div className="flex items-start gap-3">
                 <DoctorAvatar doctor={doctor} />
                 <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-gray-900 leading-tight">
+                    <h3 className={`text-sm font-bold leading-tight ${doctor.isActive ? "text-gray-900" : "text-gray-500"}`}>
                         {doctor.fullName}
                     </h3>
                     <p className="text-xs font-medium text-amber-700 mt-0.5">
@@ -399,13 +434,12 @@ function DoctorAvatar({ doctor, size = 44 }) {
             <img
                 src={doctor.avatarUrl}
                 alt={doctor.fullName}
-                className="rounded-full object-cover border-2 border-gray-100"
+                className="rounded-full object-cover border-2 border-gray-100 flex-shrink-0"
                 style={{ width: size, height: size }}
             />
         );
     }
 
-    // Initials fallback with a seeded color
     const colors = [
         "bg-blue-100 text-blue-700",
         "bg-emerald-100 text-emerald-700",
@@ -417,12 +451,14 @@ function DoctorAvatar({ doctor, size = 44 }) {
     const colorIndex =
         doctor.fullName.split("").reduce((s, c) => s + c.charCodeAt(0), 0) % colors.length;
 
+    const initials = doctor.initials || doctor.fullName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+
     return (
         <div
-            className={`rounded-full flex items-center justify-center text-sm font-bold ${colors[colorIndex]}`}
+            className={`rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 ${colors[colorIndex]}`}
             style={{ width: size, height: size }}
         >
-            {doctor.initials}
+            {initials}
         </div>
     );
 }
@@ -432,15 +468,15 @@ function StatusBadge({ isActive }) {
     return (
         <span
             className={`
-                inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
+                inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wide transition-all duration-200
                 ${isActive
                     ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "bg-gray-50 text-gray-500 border border-gray-200"
+                    : "bg-gray-100 text-gray-500 border border-gray-300"
                 }
             `}
         >
             <span
-                className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-gray-400"
+                className={`w-2 h-2 rounded-full transition-colors duration-200 ${isActive ? "bg-emerald-500 shadow-sm shadow-emerald-500/50" : "bg-gray-400"
                     }`}
             />
             {isActive ? "Active" : "Inactive"}
@@ -475,15 +511,44 @@ function DropdownItem({ icon, label, onClick, danger = false }) {
 /** ─── Profile Modal (Add / Edit Doctor) ─── */
 function ProfileModal({ doctor, specialties, onSave, onClose }) {
     const [fullName, setFullName] = useState(doctor?.fullName || "");
-    const [specialty, setSpecialty] = useState(doctor?.specialty || specialties[0] || "");
+
+    // Parse existing comma-separated specialties or default to empty array
+    const [selectedSpecialties, setSelectedSpecialties] = useState(() => {
+        if (doctor?.specialty) {
+            return doctor.specialty.split(',').map(s => s.trim()).filter(Boolean);
+        }
+        return [];
+    });
+    const [fallbackSpecialty, setFallbackSpecialty] = useState(doctor?.specialty || "");
+
     const [bio, setBio] = useState(doctor?.bio || "");
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState("");
+
+    const toggleSpecialty = (s) => {
+        setError(""); // clear error on change
+        setSelectedSpecialties(prev =>
+            prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]
+        );
+    };
 
     async function handleSubmit(e) {
         e.preventDefault();
+        setError("");
+
         if (!fullName.trim()) return;
+
+        const finalSpecialty = (specialties && specialties.length > 0)
+            ? selectedSpecialties.join(", ")
+            : fallbackSpecialty;
+
+        if (!finalSpecialty.trim()) {
+            setError("Please select at least one specialty.");
+            return;
+        }
+
         setSaving(true);
-        await onSave({ fullName: fullName.trim(), specialty, bio: bio.trim() });
+        await onSave({ fullName: fullName.trim(), specialty: finalSpecialty, bio: bio.trim() });
         setSaving(false);
     }
 
@@ -511,29 +576,40 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
 
                 {/* Specialty */}
                 <label className="block mb-4">
-                    <span className="text-xs font-semibold text-blue-700 mb-1 block">Specialty</span>
+                    <span className="text-xs font-semibold text-blue-700 mb-2 block">Specialties</span>
                     {specialties && specialties.length > 0 ? (
-                        <div className="relative">
-                            <select
-                                value={specialty}
-                                onChange={(e) => setSpecialty(e.target.value)}
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 appearance-none bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all cursor-pointer"
-                            >
-                                {specialties.map((s) => (
-                                    <option key={s} value={s}>
+                        <div className="flex flex-wrap gap-2">
+                            {specialties.map((s) => {
+                                const isSelected = selectedSpecialties.includes(s);
+                                return (
+                                    <button
+                                        key={s}
+                                        type="button"
+                                        onClick={() => toggleSpecialty(s)}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isSelected
+                                                ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
+                                                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                                            } flex items-center gap-1.5 cursor-pointer`}
+                                    >
+                                        <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
+                                            {isSelected && (
+                                                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                                </svg>
+                                            )}
+                                        </div>
                                         {s}
-                                    </option>
-                                ))}
-                            </select>
-                            <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                                    </button>
+                                );
+                            })}
                         </div>
                     ) : (
                         <input
                             type="text"
-                            value={specialty}
-                            onChange={(e) => setSpecialty(e.target.value)}
+                            value={fallbackSpecialty}
+                            onChange={(e) => setFallbackSpecialty(e.target.value)}
                             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-                            placeholder="e.g. General Dentistry (Type to add manually)"
+                            placeholder="e.g. General Dentistry, Orthodontics"
                         />
                     )}
                 </label>
@@ -549,6 +625,17 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
                         placeholder="Short description of the doctor's experience"
                     />
                 </label>
+
+                {error && (
+                    <div className="mb-6 text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100 flex items-center gap-2 animate-[scaleIn_0.2s_ease-out]">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        {error}
+                    </div>
+                )}
 
                 {/* Actions */}
                 <div className="flex justify-center gap-3">
@@ -573,8 +660,31 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
 }
 
 
+function generateTimeOptions(minTime, maxTime) {
+    const options = [];
+    let startHour = 0;
+    let endHour = 23;
+
+    if (minTime) {
+        startHour = parseInt(minTime.split(":")[0], 10);
+    }
+    if (maxTime) {
+        endHour = parseInt(maxTime.split(":")[0], 10);
+    }
+
+    for (let h = startHour; h <= endHour; h++) {
+        const hourStr = h.toString().padStart(2, '0');
+        const timeVal = `${hourStr}:00`;
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const displayHour = h % 12 || 12;
+        const displayStr = `${displayHour.toString().padStart(2, '0')}:00 ${ampm}`;
+        options.push({ value: timeVal, label: displayStr });
+    }
+    return options;
+}
+
 /** ─── Schedule / Working Hours Modal ─── */
-function ScheduleModal({ doctorName, schedule, onDayToggle, onTimeChange, onSave, onClose }) {
+function ScheduleModal({ doctorName, schedule, clinicHours, onDayToggle, onTimeChange, onSave, onClose }) {
     return (
         <ModalBackdrop onClose={onClose}>
             <div
@@ -593,63 +703,91 @@ function ScheduleModal({ doctorName, schedule, onDayToggle, onTimeChange, onSave
                 </div>
 
                 <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
-                    {schedule.map((day, dayIndex) => (
-                        <div
-                            key={day.dayLabel}
-                            className={`rounded-xl border ${day.isActive ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50/50'} p-5 transition-colors`}
-                        >
-                            {/* Day Header (Label + Toggle) */}
-                            <div className="flex items-center justify-between mb-4">
-                                <span className={`text-base font-bold ${day.isActive ? 'text-gray-900' : 'text-gray-400'}`}>
-                                    {day.dayLabel}
-                                </span>
-                                <div className="flex items-center gap-3">
-                                    <span className={`text-sm font-medium ${day.isActive ? 'text-gray-700' : 'text-gray-400'}`}>
-                                        {day.isActive ? 'Active' : 'Inactive'}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={() => onDayToggle(dayIndex)}
-                                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${day.isActive ? 'bg-blue-600' : 'bg-gray-200'}`}
-                                    >
-                                        <span
-                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${day.isActive ? 'translate-x-5' : 'translate-x-0'}`}
-                                        />
-                                    </button>
-                                </div>
-                            </div>
+                    {schedule.map((day, dayIndex) => {
+                        const dateObj = new Date(day.isoDate);
+                        const javaDays = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+                        const dayOfWeekStr = javaDays[dateObj.getDay()];
+                        const clinicDay = clinicHours.find(h => h.dayOfWeek === dayOfWeekStr);
+                        const isClinicClosed = !clinicDay;
 
-                            {/* Time Inputs */}
-                            <div className="flex gap-4">
-                                {/* Start Time */}
-                                <div className="flex-1">
-                                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
-                                        <ClockIconSmall /> Start Time
-                                    </label>
-                                    <input
-                                        type="time"
-                                        disabled={!day.isActive}
-                                        value={day.startTime || ""}
-                                        onChange={(e) => onTimeChange(dayIndex, 'startTime', e.target.value)}
-                                        className={`w-full rounded-lg border ${day.isActive ? 'border-gray-300 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500' : 'border-gray-200 text-gray-400 bg-gray-100'} px-3 py-2 text-sm transition-all outline-none`}
-                                    />
+                        const minTime = clinicDay ? clinicDay.startTime.substring(0, 5) : undefined;
+                        const maxTime = clinicDay ? clinicDay.endTime.substring(0, 5) : undefined;
+                        const timeOptions = generateTimeOptions(minTime, maxTime);
+
+                        return (
+                            <div
+                                key={day.dayLabel}
+                                className={`rounded-xl border ${day.isActive ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50/50'} p-5 transition-colors`}
+                            >
+                                {/* Day Header (Label + Toggle) */}
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className={`text-base font-bold ${day.isActive ? 'text-gray-900' : 'text-gray-400'}`}>
+                                        {day.dayLabel}
+                                        {isClinicClosed && <span className="ml-2 text-xs text-red-500 font-normal">(Clinic Closed)</span>}
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        <span className={`text-sm font-medium ${day.isActive ? 'text-gray-700' : 'text-gray-400'}`}>
+                                            {day.isActive ? 'Active' : 'Inactive'}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            disabled={isClinicClosed}
+                                            onClick={() => onDayToggle(dayIndex)}
+                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 ${isClinicClosed ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${day.isActive ? 'bg-blue-600' : 'bg-gray-200'}`}
+                                        >
+                                            <span
+                                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${day.isActive ? 'translate-x-5' : 'translate-x-0'}`}
+                                            />
+                                        </button>
+                                    </div>
                                 </div>
-                                {/* End Time */}
-                                <div className="flex-1">
-                                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
-                                        <ClockIconSmall /> End Time
-                                    </label>
-                                    <input
-                                        type="time"
-                                        disabled={!day.isActive}
-                                        value={day.endTime || ""}
-                                        onChange={(e) => onTimeChange(dayIndex, 'endTime', e.target.value)}
-                                        className={`w-full rounded-lg border ${day.isActive ? 'border-gray-300 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500' : 'border-gray-200 text-gray-400 bg-gray-100'} px-3 py-2 text-sm transition-all outline-none`}
-                                    />
+
+                                {/* Time Inputs */}
+                                <div className="flex gap-4">
+                                    {/* Start Time */}
+                                    <div className="flex-1">
+                                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
+                                            <ClockIconSmall /> Start Time
+                                        </label>
+                                        <div className="relative">
+                                            <select
+                                                disabled={!day.isActive || isClinicClosed}
+                                                value={day.startTime || ""}
+                                                onChange={(e) => onTimeChange(dayIndex, 'startTime', e.target.value)}
+                                                className={`w-full appearance-none rounded-lg border ${day.isActive ? 'border-gray-300 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer' : 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed'} px-3 py-2.5 text-sm transition-all outline-none`}
+                                            >
+                                                {!day.startTime && <option value="" disabled>Select Time</option>}
+                                                {timeOptions.map(opt => (
+                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDownIcon className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 ${day.isActive && !isClinicClosed ? 'text-gray-500' : 'text-gray-300'}`} />
+                                        </div>
+                                    </div>
+                                    {/* End Time */}
+                                    <div className="flex-1">
+                                        <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
+                                            <ClockIconSmall /> End Time
+                                        </label>
+                                        <div className="relative">
+                                            <select
+                                                disabled={!day.isActive || isClinicClosed}
+                                                value={day.endTime || ""}
+                                                onChange={(e) => onTimeChange(dayIndex, 'endTime', e.target.value)}
+                                                className={`w-full appearance-none rounded-lg border ${day.isActive ? 'border-gray-300 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer' : 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed'} px-3 py-2.5 text-sm transition-all outline-none`}
+                                            >
+                                                {!day.endTime && <option value="" disabled>Select Time</option>}
+                                                {timeOptions.map(opt => (
+                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                ))}
+                                            </select>
+                                            <ChevronDownIcon className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-4 h-4 ${day.isActive && !isClinicClosed ? 'text-gray-500' : 'text-gray-300'}`} />
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
 
                 {/* Footer Action */}

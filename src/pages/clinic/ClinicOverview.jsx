@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router';
+import { fetchDoctors } from '../../api/clinicDoctorsApi';
+import { getClinicAppointments } from '../../api/clinicAppointmentsApi';
 import {
     Users,
     CalendarCheck,
@@ -11,6 +14,39 @@ import {
 } from 'lucide-react';
 
 export default function ClinicOverview() {
+    const navigate = useNavigate();
+
+    const [stats, setStats] = useState({
+        doctorsCount: 0, // Initial mock value
+        todayAppointments: 0 // Initial mock value
+    });
+
+    useEffect(() => {
+        const loadStats = async () => {
+            try {
+                // Fetch doctors
+                const doctors = await fetchDoctors();
+                const activeDoctorsCount = doctors.filter(d => d.isActive !== false).length;
+
+                // Fetch today's appointments
+                const today = new Date();
+                const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+                const appointments = await getClinicAppointments(todayStr, todayStr);
+                const todayApptsCount = appointments.length;
+
+                setStats({
+                    doctorsCount: activeDoctorsCount,
+                    todayAppointments: todayApptsCount
+                });
+            } catch (error) {
+                console.error("Error loading clinic stats:", error);
+            }
+        };
+
+        loadStats();
+    }, []);
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -34,12 +70,12 @@ export default function ClinicOverview() {
                 />
                 <StatCard
                     title="APPOINTMENTS"
-                    value="42"
-                    subValue="/ 50 slots"
+                    value={stats.todayAppointments.toString()}
                     badge="Today"
                     icon={CalendarCheck}
                     iconBg="bg-purple-100"
                     iconColor="text-purple-600"
+                    onClick={() => navigate('/clinic/appointments')}
                 />
                 <StatCard
                     title="MONTHLY REVENUE"
@@ -51,11 +87,12 @@ export default function ClinicOverview() {
                     iconColor="text-gray-800"
                 />
                 <StatCard
-                    title="ACTIVE DOCTORS"
-                    value="8"
+                    title="CLINIC DOCTORS"
+                    value={stats.doctorsCount.toString()}
                     icon={UserCheck}
                     iconBg="bg-cyan-100"
                     iconColor="text-cyan-600"
+                    onClick={() => navigate('/clinic/doctors')}
                 />
             </div>
 
@@ -217,9 +254,12 @@ export default function ClinicOverview() {
 }
 
 // Sub-component for KPI Cards
-function StatCard({ title, value, subValue, change, changeColor, icon: Icon, iconBg, iconColor, badge, avatars }) {
+function StatCard({ title, value, subValue, change, changeColor, icon: Icon, iconBg, iconColor, badge, avatars, onClick }) {
     return (
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] relative flex flex-col justify-between h-full min-h-[160px]">
+        <div
+            onClick={onClick}
+            className={`bg-white p-6 rounded-2xl border border-gray-200 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] relative flex flex-col justify-between h-full min-h-[160px] transition-all duration-200 ${onClick ? 'cursor-pointer hover:shadow-lg hover:border-gray-300 hover:-translate-y-1' : ''}`}
+        >
             <div className="flex justify-between items-start">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBg} ${iconColor}`}>
                     <Icon className="w-5 h-5" />

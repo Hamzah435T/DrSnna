@@ -137,14 +137,17 @@ export async function fetchDoctorSchedule(doctorId) {
     return Array.from({ length: 7 }, (_, i) => {
         const d = new Date(today);
         d.setDate(today.getDate() + i);
-        const jsDay = d.getDay();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const dayNum = String(d.getDate()).padStart(2, '0');
+        const isoDate = `${year}-${month}-${dayNum}`;
 
-        // Find if backend has a schedule for this dayOfWeek
-        const backendDay = savedSchedules.find(s => javaDayOfWeekToJs[s.dayOfWeek] === jsDay);
+        // Find if backend has a schedule for this specific date
+        const backendDay = savedSchedules.find(s => s.specificDate === isoDate);
 
         return {
             dayLabel: labelForOffset(i),
-            jsDay: jsDay, // Keep this for saving later
+            isoDate: isoDate, // Keep this for saving later
             isActive: !!backendDay,
             startTime: backendDay?.startTime ? backendDay.startTime.substring(0, 5) : "",
             endTime: backendDay?.endTime ? backendDay.endTime.substring(0, 5) : "",
@@ -152,14 +155,13 @@ export async function fetchDoctorSchedule(doctorId) {
     });
 }
 
-/** Update the overall shift schedule for a specific day. */
-export async function saveDoctorSchedule(doctorId, dayOfWeekStr, startTime, endTime) {
+export async function saveDoctorSchedule(doctorId, specificDateStr, startTime, endTime) {
     const res = await fetch(`${BASE_URL}/schedules/doctor-schedule`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
             doctorId,
-            dayOfWeek: dayOfWeekStr, // e.g. "MONDAY"
+            specificDate: specificDateStr, // e.g. "2026-09-01"
             startTime, // e.g. "09:00:00"
             endTime,
         }),
@@ -169,8 +171,8 @@ export async function saveDoctorSchedule(doctorId, dayOfWeekStr, startTime, endT
 }
 
 /** Delete a specific day's shift schedule. */
-export async function deleteDoctorSchedule(doctorId, dayOfWeekStr) {
-    const res = await fetch(`${BASE_URL}/schedules/doctor-schedule?doctorId=${doctorId}&dayOfWeek=${dayOfWeekStr}`, {
+export async function deleteDoctorSchedule(doctorId, specificDateStr) {
+    const res = await fetch(`${BASE_URL}/schedules/doctor-schedule?doctorId=${doctorId}&specificDate=${specificDateStr}`, {
         method: "DELETE",
         headers: authHeaders(),
     });
