@@ -78,3 +78,25 @@ export async function fetchAvailability(clinicId, date, doctorId) {
     if (!res.ok) throw new Error("Failed to fetch availability");
     return res.json();
 }
+
+/** Book an appointment as a patient */
+export async function bookPatientAppointment(appointmentData) {
+    const res = await fetch(`${BASE_URL}/appointments`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(appointmentData)
+    });
+    if (!res.ok) {
+        const errBody = await res.text();
+        let errMsg = "Failed to book appointment";
+        try {
+            const json = JSON.parse(errBody);
+            errMsg = json.message || errMsg;
+        } catch {
+            errMsg = `${errMsg}: ${errBody}`;
+        }
+        throw new Error(errMsg);
+    }
+    return res.json();
+}
+
