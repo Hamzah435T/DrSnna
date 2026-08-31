@@ -363,7 +363,7 @@ function DoctorCard({ doctor, isMenuOpen, onToggleMenu, onEdit, onManageHours, o
         <div className={`relative bg-white rounded-2xl border p-5 transition-all duration-300 group ${doctor.isActive
             ? "border-gray-200/80 hover:shadow-lg hover:shadow-gray-200/60"
             : "border-gray-200/60 bg-gray-50/40 hover:shadow-md"
-            }`}>
+        }`}>
             {/* Top row: avatar + name + menu */}
             <div className="flex items-start gap-3">
                 <DoctorAvatar doctor={doctor} />
@@ -470,14 +470,14 @@ function StatusBadge({ isActive }) {
             className={`
                 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wide transition-all duration-200
                 ${isActive
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                    : "bg-gray-100 text-gray-500 border border-gray-300"
-                }
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                : "bg-gray-100 text-gray-500 border border-gray-300"
+            }
             `}
         >
             <span
                 className={`w-2 h-2 rounded-full transition-colors duration-200 ${isActive ? "bg-emerald-500 shadow-sm shadow-emerald-500/50" : "bg-gray-400"
-                    }`}
+                }`}
             />
             {isActive ? "Active" : "Inactive"}
         </span>
@@ -492,9 +492,9 @@ function DropdownItem({ icon, label, onClick, danger = false }) {
             className={`
                 w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium transition-colors cursor-pointer
                 ${danger
-                    ? "text-red-600 hover:bg-red-50"
-                    : "text-gray-700 hover:bg-gray-50"
-                }
+                ? "text-red-600 hover:bg-red-50"
+                : "text-gray-700 hover:bg-gray-50"
+            }
             `}
         >
             {icon}
@@ -587,9 +587,9 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
                                         type="button"
                                         onClick={() => toggleSpecialty(s)}
                                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isSelected
-                                                ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
-                                                : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                                            } flex items-center gap-1.5 cursor-pointer`}
+                                            ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
+                                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                                        } flex items-center gap-1.5 cursor-pointer`}
                                     >
                                         <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
                                             {isSelected && (

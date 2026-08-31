@@ -242,11 +242,11 @@ function Toggle({ enabled, onChange }) {
             onClick={onChange}
             aria-pressed={enabled}
             className={`relative h-[18px] w-[34px] rounded-full transition ${enabled ? "bg-blue-700" : "bg-slate-200"
-                }`}
+            }`}
         >
             <span
                 className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition ${enabled ? "left-[18px]" : "left-[2px]"
-                    }`}
+                }`}
             />
         </button>
     );
@@ -596,6 +596,13 @@ export default function ClinicProfileSettings() {
 
     async function handleSave(event) {
         event.preventDefault();
+
+        if (form.phoneNumber && !/^(079|078|077)\d{7}$/.test(form.phoneNumber)) {
+            setError("Phone number must be exactly 10 digits and start with 079, 078, or 077");
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            return;
+        }
+
         setSaving(true);
         setError("");
 
@@ -771,9 +778,10 @@ export default function ClinicProfileSettings() {
 
                                     <Input
                                         value={form.phoneNumber}
-                                        onChange={(e) =>
-                                            updateField("phoneNumber", e.target.value)
-                                        }
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                            updateField("phoneNumber", val);
+                                        }}
                                         className="rounded-l-none"
                                     />
                                 </div>
@@ -912,7 +920,7 @@ export default function ClinicProfileSettings() {
                                     className={`flex min-h-[54px] items-center justify-between ${index !== Object.entries(form.hours).length - 1
                                         ? "border-b border-slate-200"
                                         : ""
-                                        }`}
+                                    }`}
                                 >
                                     <div className="flex items-center gap-6">
                                         <Toggle
@@ -926,7 +934,7 @@ export default function ClinicProfileSettings() {
                                             className={`w-[80px] text-[15px] font-medium ${schedule.enabled
                                                 ? "text-slate-950"
                                                 : "text-slate-400"
-                                                }`}
+                                            }`}
                                         >
                                             {day}
                                         </span>

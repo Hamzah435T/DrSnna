@@ -214,7 +214,7 @@ export default function Register() {
                         <div>
                             <p style={{ color: '#4a5568', fontSize: '14px' }}>
                                 <span style={{ color: 'red', marginRight: '4px' }}>*</span>
-                                It must contain at least one uppercase letter, in addition to symbols and numbers.
+                                Password must be 8-12 characters long and contains at least one uppercase letter, in addition to symbols and numbers.
                             </p>                        </div>
                         <div className="space-y-1.5">
                             <label className="block text-xs font-semibold text-slate-700">
