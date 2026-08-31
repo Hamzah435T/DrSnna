@@ -24,6 +24,7 @@ import DoctorDashboard from "../pages/doctor/DoctorDashboard.jsx";
 import Unauthorized from "../pages/Unauthorized.jsx";
 import ClinicDetails from "../pages/patient/ClinicDetails.jsx";
 import UserProfile from "../pages/patient/UserProfile.jsx";
+import BookAppointment from "../pages/patient/BookAppointment.jsx";
 
 async function loginAction({ request }) {
     const formData = await request.formData();
@@ -211,6 +212,16 @@ export const router = createBrowserRouter([
     {
         path: "/clinic-details/:id",
         element: <ClinicDetails />,
+        loader: () => requireRole("PATIENT"),
+    },
+    {
+        path: "/book-appointment",
+        element: <BookAppointment />,
+        loader: () => requireRole("PATIENT"),
+    },
+    {
+        path: "/book-appointment/:clinicId",
+        element: <BookAppointment />,
         loader: () => requireRole("PATIENT"),
     },
     {

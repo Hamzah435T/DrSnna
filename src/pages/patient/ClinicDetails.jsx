@@ -174,13 +174,17 @@ function StarRating({ rating, size = 14 }) {
 }
 
 function ClinicHero({ clinic }) {
+    const navigate = useNavigate();
     return (
         <section className="cd-hero cd-card" id="clinic-hero">
             <div className="cd-hero-image-wrap">
                 <img
-                    src="https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=200&h=200&fit=crop"
+                    src={clinic.imageUrl || '/clinic-building.jpg'}
                     alt={clinic.clinicName}
                     className="cd-hero-image"
+                    onError={(e) => {
+                        e.currentTarget.src = '/clinic-building.jpg';
+                    }}
                 />
             </div>
             <div className="cd-hero-info">
@@ -198,13 +202,27 @@ function ClinicHero({ clinic }) {
                     ))}
                 </div>
             </div>
-            <div className="cd-hero-actions">
+            <div className="cd-hero-actions" style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-end' }}>
                 <div className="cd-hero-fee">
                     <span className="cd-hero-fee-label">Checking Fee:</span>
                     <span className="cd-hero-fee-value">
-                        {clinic.checkingFee != null ? `$${clinic.checkingFee}` : 'Free'}
+                        {clinic.checkingFee != null ? `${clinic.checkingFee} JOD` : 'Free'}
                     </span>
                 </div>
+                <button
+                    onClick={() => navigate(`/book-appointment/${clinic.clinicId}`)}
+                    className="cd-book-btn"
+                    style={{
+                        padding: '10px 18px',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                    }}
+                >
+                    Book Appointment <span className="cd-book-arrow">→</span>
+                </button>
             </div>
         </section>
     );
@@ -289,7 +307,6 @@ function TimeSlotGrid({ clinicId, doctorId, activeDates, selectedAppointment, on
 
     useEffect(() => {
         let cancelled = false;
-        setLoadingSlots(true);
 
         Promise.all(
             activeDates.map(date =>
@@ -393,13 +410,30 @@ function TimeSlotGrid({ clinicId, doctorId, activeDates, selectedAppointment, on
     );
 }
 
-function DoctorCard({ doctor, clinicId, clinicHours, selectedAppointment, onSelectAppointment }) {
+function DoctorCard({ doctor, clinicId, selectedAppointment, onSelectAppointment }) {
+    const navigate = useNavigate();
     const [showSlots, setShowSlots] = useState(false);
 
     // Static rating mock for now
     const mockRating = 4.8;
 
     const activeDates = useMemo(() => getUpcomingDates(), []);
+
+    const isSelectedDoctor = selectedAppointment?.doctorId === doctor.doctorId;
+
+    const handleBookClick = () => {
+        navigate(`/book-appointment/${clinicId}`, {
+            state: {
+                clinicId,
+                doctorId: doctor.doctorId,
+                doctorName: doctor.fullName,
+                doctorSpecialty: doctor.specialty,
+                selectedDate: isSelectedDoctor ? selectedAppointment?.date : undefined,
+                selectedTime: isSelectedDoctor ? selectedAppointment?.time : undefined,
+                selectedDay: isSelectedDoctor ? selectedAppointment?.day : undefined
+            }
+        });
+    };
 
     return (
         <div className="cd-doctor-card cd-card" id={`doctor-card-${doctor.doctorId}`}>
@@ -434,15 +468,15 @@ function DoctorCard({ doctor, clinicId, clinicHours, selectedAppointment, onSele
                 <div style={{ flexShrink: 0, marginLeft: '16px', marginTop: '30px' }}>
                     <button
                         className="cd-book-btn"
-                        disabled={selectedAppointment?.doctorId !== doctor.doctorId}
+                        onClick={handleBookClick}
                         style={{
                             padding: '12px 20px',
                             fontSize: '16px',
                             transition: 'all 0.3s ease',
-                            opacity: selectedAppointment?.doctorId === doctor.doctorId ? 1 : 0.4,
-                            cursor: selectedAppointment?.doctorId === doctor.doctorId ? 'pointer' : 'not-allowed',
-                            boxShadow: selectedAppointment?.doctorId === doctor.doctorId ? '0 0 15px 2px rgba(14, 165, 233, 0.4)' : 'none',
-                            transform: selectedAppointment?.doctorId === doctor.doctorId ? 'scale(1.05)' : 'scale(1)'
+                            opacity: 1,
+                            cursor: 'pointer',
+                            boxShadow: isSelectedDoctor ? '0 0 15px 2px rgba(14, 165, 233, 0.4)' : 'none',
+                            transform: isSelectedDoctor ? 'scale(1.05)' : 'scale(1)'
                         }}
                     >
                         Book Appointment <span className="cd-book-arrow">→</span>
@@ -512,18 +546,13 @@ function ReviewCard({ review, clinicName }) {
 
 export default function ClinicDetails() {
     const { id: clinicId } = useParams();
-    const navigate = useNavigate();
     const [clinic, setClinic] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(Boolean(clinicId));
+    const [error, setError] = useState(clinicId ? null : 'No clinic ID provided');
     const [selectedAppointment, setSelectedAppointment] = useState(null);
 
     useEffect(() => {
-        if (!clinicId) {
-            setError('No clinic ID provided');
-            setLoading(false);
-            return;
-        }
+        if (!clinicId) return;
 
         fetchClinicDetails(clinicId)
             .then(data => {
@@ -536,10 +565,11 @@ export default function ClinicDetails() {
             });
     }, [clinicId]);
 
+    const clinicHours = clinic?.clinicHours;
     const mergedHours = useMemo(() => {
-        if (!clinic?.clinicHours) return [];
-        return mergeClinicHours(clinic.clinicHours);
-    }, [clinic?.clinicHours]);
+        if (!clinicHours) return [];
+        return mergeClinicHours(clinicHours);
+    }, [clinicHours]);
 
     if (loading) {
         return (
@@ -584,7 +614,6 @@ export default function ClinicDetails() {
                                 key={doc.doctorId}
                                 doctor={doc}
                                 clinicId={clinicId}
-                                clinicHours={clinic.clinicHours || []}
                                 selectedAppointment={selectedAppointment}
                                 onSelectAppointment={setSelectedAppointment}
                             />

@@ -59,6 +59,7 @@ export default function PatientHomePage() {
   const [sortBy, setSortBy] = useState('default');
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMaxFee(maxAvailableFee);
   }, [maxAvailableFee]);
 
@@ -100,6 +101,7 @@ export default function PatientHomePage() {
 
   useEffect(() => {
     if (clinics.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCustomSpecialties(prev => {
         const nextSet = new Set(prev);
         let added = false;
@@ -125,7 +127,7 @@ export default function PatientHomePage() {
     async function loadClinics() {
       try {
         setLoading(true);
-        
+
         let dateParams = {};
         if (availability === 'Today') {
           const today = new Date();

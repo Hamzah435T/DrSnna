@@ -22,12 +22,12 @@ export default function PatientNavbar() {
                     className="flex items-center gap-2.5 cursor-pointer select-none"
                     onClick={() => navigate('/')}
                 >
-                    <div className="h-9 w-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs">
-                        <Stethoscope className="w-5 h-5 stroke-[2.2]" />
+                    <div className="h-9 w-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center p-1 shadow-xs overflow-hidden">
+                        <img src="/logo.png" alt="DrSnna" className="w-full h-full object-contain" />
                     </div>
                     <div>
                         <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
-                            Dr.Sna Dental
+                            DrSnna
                         </span>
                         <p className="text-[10px] text-slate-500 font-medium -mt-0.5">Patient Portal</p>
                     </div>

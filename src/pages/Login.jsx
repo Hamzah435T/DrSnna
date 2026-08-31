@@ -13,7 +13,7 @@ export default function Login() {
         <div className="flex min-h-screen w-full bg-white font-sans text-slate-800">
             {/* القسم الأيسر: الهوية البصرية (5/12) */}
             <div className="relative hidden w-5/12 flex-col justify-between overflow-hidden p-12 text-white lg:flex bg-cover bg-center"
-                 style={{ backgroundImage: "url('/bg.png')" }}>
+                style={{ backgroundImage: "url('/bg.png')" }}>
 
                 {/* Overlay لدمج اللون الأزرق مع الصورة وجعل النص واضح */}
                 <div className="absolute inset-0 bg-blue-500/70 backdrop-blur-[2px]" />
