@@ -6,7 +6,7 @@ import './ClinicDetails.css';
 
 // ─── Helpers ───
 
-const DAY_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+const DAY_ORDER = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 const DAY_SHORT = { MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat', SUNDAY: 'Sun' };
 
 function formatTime12h(time24) {
@@ -19,7 +19,6 @@ function formatTime12h(time24) {
 
 /** Merge consecutive days with same hours into grouped rows */
 function mergeClinicHours(clinicHours) {
-    // Build a map of day -> { start, end } from the API schedule list
     const dayMap = {};
     for (const h of clinicHours) {
         if (h.dayOfWeek) {
@@ -27,33 +26,46 @@ function mergeClinicHours(clinicHours) {
         }
     }
 
-    const rows = [];
-    let i = 0;
-    while (i < DAY_ORDER.length) {
-        const day = DAY_ORDER[i];
+    const DAY_ORDER = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const DAY_SHORT = { SUNDAY: 'Sun', MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat' };
+
+    const timeGroups = {};
+    for (const day of DAY_ORDER) {
         const hours = dayMap[day];
         const timeStr = hours ? `${formatTime12h(hours.start)} - ${formatTime12h(hours.end)}` : 'Closed';
+        if (!timeGroups[timeStr]) timeGroups[timeStr] = [];
+        timeGroups[timeStr].push(day);
+    }
 
-        let j = i + 1;
-        while (j < DAY_ORDER.length) {
-            const nextDay = DAY_ORDER[j];
-            const nextHours = dayMap[nextDay];
-            const nextTimeStr = nextHours ? `${formatTime12h(nextHours.start)} - ${formatTime12h(nextHours.end)}` : 'Closed';
-            if (nextTimeStr === timeStr) {
-                j++;
+    const rows = [];
+
+    for (const [timeStr, days] of Object.entries(timeGroups)) {
+        let labelParts = [];
+        let rangeStart = days[0];
+        let prevDayIndex = DAY_ORDER.indexOf(days[0]);
+
+        for (let i = 1; i <= days.length; i++) {
+            const currentDay = days[i];
+            const currentIndex = DAY_ORDER.indexOf(currentDay);
+
+            if (currentDay && currentIndex === prevDayIndex + 1) {
+                prevDayIndex = currentIndex;
             } else {
-                break;
+                const rangeEnd = DAY_ORDER[prevDayIndex];
+                if (rangeStart === rangeEnd) {
+                    labelParts.push(DAY_SHORT[rangeStart]);
+                } else {
+                    labelParts.push(`${DAY_SHORT[rangeStart]} - ${DAY_SHORT[rangeEnd]}`);
+                }
+
+                rangeStart = currentDay;
+                prevDayIndex = currentIndex;
             }
         }
 
-        const startDay = DAY_SHORT[DAY_ORDER[i]];
-        const endDay = DAY_SHORT[DAY_ORDER[j - 1]];
-        const label = i === j - 1 ? startDay : `${startDay} - ${endDay}`;
-        rows.push({ day: label, time: timeStr });
-        i = j;
+        rows.push({ day: labelParts.join(', '), time: timeStr });
     }
 
-    // Move 'Closed' rows to the bottom while maintaining relative order
     const openRows = rows.filter(r => r.time !== 'Closed');
     const closedRows = rows.filter(r => r.time === 'Closed');
     return [...openRows, ...closedRows];

@@ -23,6 +23,7 @@ import ClinicDoctors from "../pages/clinic/components/ClinicDoctors.jsx";
 import DoctorDashboard from "../pages/doctor/DoctorDashboard.jsx";
 import Unauthorized from "../pages/Unauthorized.jsx";
 import ClinicDetails from "../pages/patient/ClinicDetails.jsx";
+import UserProfile from "../pages/patient/UserProfile.jsx";
 
 async function loginAction({ request }) {
     const formData = await request.formData();
@@ -134,9 +135,24 @@ export async function logoutAction() {
 
 export const router = createBrowserRouter([
     {
+        path: "/profile",
+        element: <UserProfile />,
+        loader: () => {
+            const auth = getAuth();
+            if (!auth) return redirect("/login");
+            if (auth.role !== "PATIENT" && auth.role !== "DOCTOR") {
+                return redirect("/unauthorized");
+            }
+            return auth;
+        },
+    },
+    {
         path: "/",
         element: <PatientHomePage />,
-        loader: () => requireRole("PATIENT"),
+        loader: () => {const auth = getAuth();
+            if (auth?.role === "CLINIC") return redirect("/clinic");
+            if (auth?.role === "DOCTOR") return redirect("/doctor");
+            return requireRole("PATIENT");}
     },
     {
         path: "/login",
