@@ -1,17 +1,21 @@
 const AUTH_KEY = "auth";
 
 export function saveAuth(authData) {
-    localStorage.setItem(AUTH_KEY, JSON.stringify(authData));
+    sessionStorage.setItem(AUTH_KEY, JSON.stringify(authData));
 }
 
 export function getAuth() {
-    const auth = localStorage.getItem(AUTH_KEY);
+    const auth = sessionStorage.getItem(AUTH_KEY);
 
     if (!auth) {
         return null;
     }
 
-    return JSON.parse(auth);
+    try {
+        return JSON.parse(auth);
+    } catch {
+        return null;
+    }
 }
 
 export function getToken() {
@@ -23,5 +27,6 @@ export function getRole() {
 }
 
 export function clearAuth() {
+    sessionStorage.removeItem(AUTH_KEY);
     localStorage.removeItem(AUTH_KEY);
 }
