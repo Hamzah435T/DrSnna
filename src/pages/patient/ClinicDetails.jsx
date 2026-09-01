@@ -1,7 +1,16 @@
+// src/pages/patient/ClinicDetails.jsx
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import { Heart, CheckCircle2, AlertCircle } from 'lucide-react';
 import PatientNavbar from '../../components/PatientNavbar';
-import { fetchClinicDetails, fetchAvailability } from '../../api/patientApi';
+import {
+    fetchClinicDetails,
+    fetchAvailability,
+    getPatientFavorites,
+    addDoctorToFavorites,
+    removeDoctorFromFavorites
+} from '../../api/patientApi';
+import { getAuth } from '../../auth/authStorage';
 import './ClinicDetails.css';
 
 // ─── Helpers ───
@@ -103,8 +112,6 @@ function colorFromName(name) {
     return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-
-
 /** Get exactly the next 7 dates, starting from today */
 function getUpcomingDates() {
     const dates = [];
@@ -135,6 +142,12 @@ function formatDateForApi(date) {
     const m = String(date.getMonth() + 1).padStart(2, '0');
     const d = String(date.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
+}
+
+// ─── Helper: Doctor ID Extraction ───
+function getDoctorId(doc) {
+    if (!doc) return '';
+    return String(doc.doctorId || doc.doctor?.id || doc.doctorUserId || doc.userId || doc.id || '').trim();
 }
 
 // ─── Sub-components ───
@@ -174,7 +187,6 @@ function StarRating({ rating, size = 14 }) {
 }
 
 function ClinicHero({ clinic }) {
-    const navigate = useNavigate();
     return (
         <section className="cd-hero cd-card" id="clinic-hero">
             <div className="cd-hero-image-wrap">
@@ -209,20 +221,6 @@ function ClinicHero({ clinic }) {
                         {clinic.checkingFee != null ? `${clinic.checkingFee} JOD` : 'Free'}
                     </span>
                 </div>
-                <button
-                    onClick={() => navigate(`/book-appointment/${clinic.clinicId}`)}
-                    className="cd-book-btn"
-                    style={{
-                        padding: '10px 18px',
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                    }}
-                >
-                    Book Appointment <span className="cd-book-arrow">→</span>
-                </button>
             </div>
         </section>
     );
@@ -243,7 +241,6 @@ function AboutSection({ clinic, mergedHours }) {
             <div className="cd-contact cd-card" id="contact-hours">
                 <h2 className="cd-section-title">Contact & Hours</h2>
                 <div className="cd-contact-items">
-                    {/* Phone */}
                     <div className="cd-contact-item">
                         <div className="cd-contact-icon cd-contact-icon-phone">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -255,7 +252,7 @@ function AboutSection({ clinic, mergedHours }) {
                             <span className="cd-contact-value">{clinic.phoneNumber || 'Not provided'}</span>
                         </div>
                     </div>
-                    {/* Email */}
+
                     <div className="cd-contact-item">
                         <div className="cd-contact-icon cd-contact-icon-email">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -269,7 +266,6 @@ function AboutSection({ clinic, mergedHours }) {
                         </div>
                     </div>
 
-                    {/* Social Links */}
                     {clinic.socialLinks && (
                         <div className="cd-contact-item">
                             <div className="cd-contact-icon cd-contact-icon-email">
@@ -308,22 +304,45 @@ function TimeSlotGrid({ clinicId, doctorId, activeDates, selectedAppointment, on
     useEffect(() => {
         let cancelled = false;
 
+        // Resolve doctor ID across possible data shapes
+        const resolvedDocId = typeof doctorId === 'object'
+            ? (doctorId?.doctorId || doctorId?.id || doctorId?.userId)
+            : doctorId;
+
         Promise.all(
-            activeDates.map(date =>
-                fetchAvailability(clinicId, formatDateForApi(date), doctorId)
-                    .then(slots => ({ date: formatDateForApi(date), label: formatDateLabel(date), slots }))
-                    .catch(() => ({ date: formatDateForApi(date), label: formatDateLabel(date), slots: [] }))
-            )
+            activeDates.map(date => {
+                const dateStr = formatDateForApi(date);
+                const label = formatDateLabel(date);
+
+                // Pass as object { clinicId, date, doctorId } matching patientApi.js
+                return fetchAvailability({
+                    clinicId: clinicId,
+                    date: dateStr,
+                    doctorId: resolvedDocId || undefined
+                })
+                    .then(res => {
+                        const rawSlots = Array.isArray(res)
+                            ? res
+                            : (res?.slots || res?.availableSlots || res?.data || []);
+                        return { date: dateStr, label, slots: rawSlots };
+                    })
+                    .catch(() => ({ date: dateStr, label, slots: [] }));
+            })
         ).then(results => {
             if (cancelled) return;
             const map = {};
             for (const r of results) {
-                map[r.label] = r.slots.map(s => ({
-                    time: s.time?.substring(0, 5),
-                    available: s.available,
-                    date: r.date,
-                    scheduleId: s.scheduleId
-                }));
+                map[r.label] = r.slots.map(s => {
+                    const rawTime = typeof s === 'string' ? s : (s.time || s.startTime || '');
+                    const timeFormatted = rawTime ? rawTime.substring(0, 5) : '';
+                    return {
+                        time: timeFormatted,
+                        rawTime: rawTime,
+                        available: typeof s === 'object' ? (s.available !== false) : true,
+                        date: r.date,
+                        scheduleId: s.scheduleId || s.id
+                    };
+                });
             }
             setSlotsByDate(map);
             setLoadingSlots(false);
@@ -333,11 +352,18 @@ function TimeSlotGrid({ clinicId, doctorId, activeDates, selectedAppointment, on
     }, [clinicId, doctorId, activeDates]);
 
     const handleSlotClick = (day, time) => {
-        if (selectedAppointment?.doctorId === doctorId && selectedAppointment?.day === day && selectedAppointment?.time === time) {
+        const resolvedDocId = typeof doctorId === 'object' ? (doctorId?.doctorId || doctorId?.id) : doctorId;
+        if (selectedAppointment?.doctorId === resolvedDocId && selectedAppointment?.day === day && selectedAppointment?.time === time) {
             onSelectAppointment(null);
         } else {
             const slot = slotsByDate[day]?.find(s => s.time === time);
-            onSelectAppointment({ doctorId, day, time, date: slot?.date, scheduleId: slot?.scheduleId });
+            onSelectAppointment({
+                doctorId: resolvedDocId,
+                day,
+                time,
+                date: slot?.date,
+                scheduleId: slot?.scheduleId
+            });
         }
     };
 
@@ -364,68 +390,76 @@ function TimeSlotGrid({ clinicId, doctorId, activeDates, selectedAppointment, on
             <p className="cd-timeslot-label">SELECT A TIME FOR CONSULTATION</p>
             <div className="cd-days-scroll-wrapper" ref={scrollRef}>
                 <div className="cd-days-container" style={{ minWidth: days.length > 3 ? `${days.length * 210}px` : undefined }}>
-                    {days.map(day => (
-                        <div key={day} className="cd-day-column">
-                            <div className="cd-day-header">{day}</div>
-                            <div className="cd-day-slots">
-                                {slotsByDate[day].length === 0 ? (
-                                    <span style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#94a3b8', fontSize: '13px', padding: '12px 0' }}>
-                                        No slots
-                                    </span>
-                                ) : (
-                                    slotsByDate[day].map(slot => {
-                                        const isAvailable = slot.available;
-                                        const isSelected = selectedAppointment?.doctorId === doctorId && selectedAppointment?.day === day && selectedAppointment?.time === slot.time;
-                                        const isAnotherSelected = selectedAppointment !== null && !isSelected;
+                    {days.map(day => {
+                        const resolvedDocId = typeof doctorId === 'object' ? (doctorId?.doctorId || doctorId?.id) : doctorId;
 
-                                        let slotClass = 'cd-slot-unavailable';
-                                        if (isAvailable) {
-                                            if (isSelected) {
-                                                slotClass = 'cd-slot-selected';
-                                            } else if (isAnotherSelected) {
-                                                slotClass = 'cd-slot-unselected';
-                                            } else {
-                                                slotClass = 'cd-slot-available';
+                        return (
+                            <div key={day} className="cd-day-column">
+                                <div className="cd-day-header">{day}</div>
+                                <div className="cd-day-slots">
+                                    {slotsByDate[day].length === 0 ? (
+                                        <span style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#94a3b8', fontSize: '13px', padding: '12px 0' }}>
+                                            Clinic is closed or no doctor shifts are scheduled on this date.
+                                        </span>
+                                    ) : (
+                                        slotsByDate[day].map(slot => {
+                                            const isAvailable = slot.available;
+                                            const isSelected = selectedAppointment?.doctorId === resolvedDocId && selectedAppointment?.day === day && selectedAppointment?.time === slot.time;
+                                            const isAnotherSelected = selectedAppointment !== null && !isSelected;
+
+                                            let slotClass = 'cd-slot-unavailable';
+                                            if (isAvailable) {
+                                                if (isSelected) {
+                                                    slotClass = 'cd-slot-selected';
+                                                } else if (isAnotherSelected) {
+                                                    slotClass = 'cd-slot-unselected';
+                                                } else {
+                                                    slotClass = 'cd-slot-available';
+                                                }
                                             }
-                                        }
 
-                                        return (
-                                            <button
-                                                key={slot.time}
-                                                className={`cd-slot-btn ${slotClass}`}
-                                                disabled={!isAvailable}
-                                                onClick={() => handleSlotClick(day, slot.time)}
-                                            >
-                                                {slot.time}
-                                            </button>
-                                        );
-                                    })
-                                )}
+                                            return (
+                                                <button
+                                                    key={slot.time}
+                                                    className={`cd-slot-btn ${slotClass}`}
+                                                    disabled={!isAvailable}
+                                                    onClick={() => handleSlotClick(day, slot.time)}
+                                                >
+                                                    {slot.time}
+                                                </button>
+                                            );
+                                        })
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>
     );
 }
-
-function DoctorCard({ doctor, clinicId, selectedAppointment, onSelectAppointment }) {
+function DoctorCard({
+                        doctor,
+                        clinicId,
+                        selectedAppointment,
+                        onSelectAppointment,
+                        isFavorited,
+                        onToggleFavorite
+                    }) {
     const navigate = useNavigate();
     const [showSlots, setShowSlots] = useState(false);
 
-    // Static rating mock for now
     const mockRating = 4.8;
-
     const activeDates = useMemo(() => getUpcomingDates(), []);
-
-    const isSelectedDoctor = selectedAppointment?.doctorId === doctor.doctorId;
+    const doctorId = getDoctorId(doctor);
+    const isSelectedDoctor = selectedAppointment?.doctorId === doctorId;
 
     const handleBookClick = () => {
         navigate(`/book-appointment/${clinicId}`, {
             state: {
                 clinicId,
-                doctorId: doctor.doctorId,
+                doctorId: doctorId,
                 doctorName: doctor.fullName,
                 doctorSpecialty: doctor.specialty,
                 selectedDate: isSelectedDoctor ? selectedAppointment?.date : undefined,
@@ -436,7 +470,7 @@ function DoctorCard({ doctor, clinicId, selectedAppointment, onSelectAppointment
     };
 
     return (
-        <div className="cd-doctor-card cd-card" id={`doctor-card-${doctor.doctorId}`}>
+        <div className="cd-doctor-card cd-card" id={`doctor-card-${doctorId}`}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div className="cd-doctor-header" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 0, flex: 1 }}>
                     <div
@@ -464,8 +498,40 @@ function DoctorCard({ doctor, clinicId, selectedAppointment, onSelectAppointment
                     </div>
                 </div>
 
-                {/* Book Appointment Button (Top Right) */}
-                <div style={{ flexShrink: 0, marginLeft: '16px', marginTop: '30px' }}>
+                {/* Favorite Heart & Book Appointment Buttons */}
+                <div style={{ flexShrink: 0, marginLeft: '16px', marginTop: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleFavorite(doctor);
+                        }}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '14px',
+                            border: isFavorited ? '1.5px solid #f43f5e' : '1.5px solid #e2e8f0',
+                            backgroundColor: isFavorited ? '#fff1f2' : '#ffffff',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                            boxShadow: isFavorited ? '0 4px 12px -2px rgba(225, 29, 72, 0.3)' : '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+                        }}
+                        title={isFavorited ? 'Remove from favorite doctors' : 'Add doctor to favorites'}
+                    >
+                        <Heart
+                            size={22}
+                            style={{
+                                fill: isFavorited ? '#e11d48' : 'none',
+                                color: isFavorited ? '#e11d48' : '#94a3b8',
+                                strokeWidth: isFavorited ? 2.5 : 2,
+                                transition: 'transform 0.15s ease'
+                            }}
+                        />
+                    </button>
+
                     <button
                         className="cd-book-btn"
                         onClick={handleBookClick}
@@ -483,19 +549,21 @@ function DoctorCard({ doctor, clinicId, selectedAppointment, onSelectAppointment
                     </button>
                 </div>
             </div>
+
             <button
                 className="cd-toggle-times"
                 onClick={() => setShowSlots(!showSlots)}
-                id={`toggle-times-${doctor.doctorId}`}
+                id={`toggle-times-${doctorId}`}
                 style={{ marginTop: '16px' }}
             >
                 {showSlots ? 'Hide' : 'View'} Available Times{' '}
                 <span className={`cd-toggle-arrow ${showSlots ? 'cd-arrow-up' : ''}`}>▾</span>
             </button>
+
             {showSlots && (
                 <TimeSlotGrid
                     clinicId={clinicId}
-                    doctorId={doctor.doctorId}
+                    doctorId={doctor.doctorId || doctor.id}
                     activeDates={activeDates}
                     selectedAppointment={selectedAppointment}
                     onSelectAppointment={onSelectAppointment}
@@ -550,6 +618,20 @@ export default function ClinicDetails() {
     const [loading, setLoading] = useState(Boolean(clinicId));
     const [error, setError] = useState(clinicId ? null : 'No clinic ID provided');
     const [selectedAppointment, setSelectedAppointment] = useState(null);
+    const [favoritesList, setFavoritesList] = useState([]);
+    const [toast, setToast] = useState(null);
+    const auth = getAuth();
+
+    const fetchFavorites = () => {
+        if (auth?.token) {
+            getPatientFavorites()
+                .then(favs => {
+                    const list = Array.isArray(favs) ? favs : (favs?.favorites || favs?.data || []);
+                    setFavoritesList(list);
+                })
+                .catch(() => {});
+        }
+    };
 
     useEffect(() => {
         if (!clinicId) return;
@@ -563,13 +645,85 @@ export default function ClinicDetails() {
                 setError(err.message);
                 setLoading(false);
             });
-    }, [clinicId]);
+
+        fetchFavorites();
+    }, [clinicId, auth?.token]);
 
     const clinicHours = clinic?.clinicHours;
     const mergedHours = useMemo(() => {
         if (!clinicHours) return [];
         return mergeClinicHours(clinicHours);
     }, [clinicHours]);
+
+    function showToast(message, type = 'success') {
+        setToast({ message, type });
+        setTimeout(() => {
+            setToast(null);
+        }, 3000);
+    }
+
+    // Check if doctor matches any item in favoritesList
+    const isDoctorInFavorites = (doctor) => {
+        const targetId = getDoctorId(doctor).toLowerCase();
+        if (!targetId) return false;
+
+        return favoritesList.some(f => {
+            const fDoctorId = String(f?.doctorId || f?.doctor?.id || f?.doctorUserId || f?.userId || f?.id || '').trim().toLowerCase();
+            return fDoctorId === targetId;
+        });
+    };
+
+    // Toggle favorite doctor
+    async function handleToggleFavorite(doctor) {
+        if (!auth?.token) {
+            showToast('Please sign in to manage favorite doctors.', 'error');
+            return;
+        }
+
+        const targetId = getDoctorId(doctor);
+        if (!targetId) return;
+
+        const isFav = isDoctorInFavorites(doctor);
+
+        if (isFav) {
+            // Unfavorite (DELETE)
+            setFavoritesList(prev => prev.filter(f => {
+                const fId = String(f?.doctorId || f?.doctor?.id || f?.doctorUserId || f?.userId || f?.id || '').trim().toLowerCase();
+                return fId !== targetId.toLowerCase();
+            }));
+
+            try {
+                await removeDoctorFromFavorites(targetId);
+                showToast('Doctor removed from favorites', 'info');
+            } catch (err) {
+                console.error('Failed to remove favorite doctor:', err);
+                showToast(err.message || 'Failed to remove from favorites', 'error');
+                fetchFavorites();
+            }
+        } else {
+            // Favorite (POST)
+            const newFavItem = {
+                doctorId: targetId,
+                id: targetId,
+                doctorName: doctor.fullName,
+                clinicName: clinic?.clinicName
+            };
+            setFavoritesList(prev => [...prev, newFavItem]);
+
+            try {
+                await addDoctorToFavorites(targetId);
+                showToast('Doctor added to favorites', 'success');
+            } catch (err) {
+                if (err.message?.includes('already in favorites') || err.message?.includes('409')) {
+                    showToast('Doctor is in your favorites', 'info');
+                } else {
+                    console.error('Failed to add favorite doctor:', err);
+                    showToast(err.message || 'Failed to add to favorites', 'error');
+                    fetchFavorites();
+                }
+            }
+        }
+    }
 
     if (loading) {
         return (
@@ -598,8 +752,41 @@ export default function ClinicDetails() {
     }
 
     return (
-        <div className="cd-page">
+        <div className="cd-page relative">
             <PatientNavbar />
+
+            {/* Floating Toast Notification */}
+            {toast && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        bottom: '28px',
+                        right: '28px',
+                        zIndex: 9999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '12px 18px',
+                        borderRadius: '16px',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        backgroundColor: toast.type === 'success' ? '#ecfdf5' : toast.type === 'info' ? '#fff1f2' : '#fef2f2',
+                        color: toast.type === 'success' ? '#047857' : toast.type === 'info' ? '#e11d48' : '#b91c1c',
+                        border: toast.type === 'success' ? '1px solid #a7f3d0' : toast.type === 'info' ? '1px solid #fecdd3' : '1px solid #fecaca',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                        animation: 'fadeInUp 0.3s ease-out'
+                    }}
+                >
+                    {toast.type === 'success' ? (
+                        <CheckCircle2 size={18} className="text-emerald-600" />
+                    ) : toast.type === 'info' ? (
+                        <Heart size={18} className="fill-rose-600 text-rose-600" />
+                    ) : (
+                        <AlertCircle size={18} className="text-red-600" />
+                    )}
+                    <span>{toast.message}</span>
+                </div>
+            )}
 
             <main className="cd-main">
                 <ClinicHero clinic={clinic} />
@@ -609,15 +796,21 @@ export default function ClinicDetails() {
                 <section className="cd-doctors-section" id="our-doctors">
                     <h2 className="cd-section-title">Our Doctors</h2>
                     <div className="cd-doctors-list">
-                        {clinic.doctors?.filter(doc => doc.isActive !== false).map((doc) => (
-                            <DoctorCard
-                                key={doc.doctorId}
-                                doctor={doc}
-                                clinicId={clinicId}
-                                selectedAppointment={selectedAppointment}
-                                onSelectAppointment={setSelectedAppointment}
-                            />
-                        ))}
+                        {clinic.doctors?.filter(doc => doc.isActive !== false).map((doc) => {
+                            const isFav = isDoctorInFavorites(doc);
+
+                            return (
+                                <DoctorCard
+                                    key={getDoctorId(doc)}
+                                    doctor={doc}
+                                    clinicId={clinicId}
+                                    selectedAppointment={selectedAppointment}
+                                    onSelectAppointment={setSelectedAppointment}
+                                    isFavorited={isFav}
+                                    onToggleFavorite={handleToggleFavorite}
+                                />
+                            );
+                        })}
                         {(!clinic.doctors || clinic.doctors.length === 0) && (
                             <div className="cd-card" style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
                                 No doctors are currently available at this clinic.

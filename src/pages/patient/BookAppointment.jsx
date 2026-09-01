@@ -1,3 +1,4 @@
+// src/pages/patient/BookAppointment.jsx
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router';
 import {
@@ -14,7 +15,6 @@ import {
     CreditCard,
     Stethoscope,
     AlertCircle,
-    FileText
 } from 'lucide-react';
 import PatientNavbar from '../../components/PatientNavbar';
 import { fetchClinicDetails, fetchAvailability, bookPatientAppointment } from '../../api/patientApi';
@@ -108,7 +108,14 @@ export default function BookAppointment() {
     const [fullName, setFullName] = useState(auth?.fullName || auth?.name || '');
     const [age, setAge] = useState('');
     const [phoneNumber, setPhoneNumber] = useState(auth?.phoneNumber || '');
-    const [selectedService, setSelectedService] = useState(stateData.service || '');
+
+    // Multiple Service Selection State (Max 2)
+    const [selectedServiceIds, setSelectedServiceIds] = useState(() => {
+        if (stateData.serviceId) return [stateData.serviceId];
+        if (stateData.serviceIds && Array.isArray(stateData.serviceIds)) return stateData.serviceIds;
+        return [];
+    });
+
     const [selectedDoctorId, setSelectedDoctorId] = useState(stateData.doctorId || '');
     const [paymentMethod, setPaymentMethod] = useState('');
     const [notes, setNotes] = useState('');
@@ -147,20 +154,11 @@ export default function BookAppointment() {
                 setClinic(data);
                 setClinicError(null);
 
-                // Auto-select doctor if passed or if only one doctor exists
+                // Auto-select doctor
                 if (stateData.doctorId) {
                     setSelectedDoctorId(stateData.doctorId);
                 } else if (data.doctors && data.doctors.length === 1) {
-                    setSelectedDoctorId(data.doctors[0].doctorId);
-                }
-
-                // Auto-select service if passed or if clinic has services
-                if (stateData.service) {
-                    setSelectedService(stateData.service);
-                } else if (data.services && data.services.length > 0) {
-                    setSelectedService(data.services[0]);
-                } else if (data.specialties && data.specialties.length > 0) {
-                    setSelectedService(data.specialties[0]);
+                    setSelectedDoctorId(data.doctors[0].doctorId || data.doctors[0].id);
                 }
 
                 setLoadingClinic(false);
@@ -174,29 +172,93 @@ export default function BookAppointment() {
         return () => {
             isMounted = false;
         };
-    }, [effectiveClinicId, stateData.doctorId, stateData.service]);
+    }, [effectiveClinicId, stateData.doctorId]);
 
-    // Fetch availability slots from Backend API
+    // List of active clinic doctors
+    const activeDoctors = useMemo(() => {
+        return clinic?.doctors ? clinic.doctors.filter(doc => doc.isActive !== false) : [];
+    }, [clinic]);
+
+    // Active doctor entity
+    const currentDoctor = useMemo(() => {
+        return activeDoctors.find(d => String(d.doctorId || d.id) === String(selectedDoctorId)) || activeDoctors[0];
+    }, [activeDoctors, selectedDoctorId]);
+
+    // All clinic services normalized
+    const allClinicServices = useMemo(() => {
+        if (clinic?.services && clinic.services.length > 0) {
+            return clinic.services.map(s => ({
+                id: s.serviceId || s.id,
+                name: s.serviceName || s.name || 'General Dental Care'
+            }));
+        }
+        if (clinic?.specialties && clinic.specialties.length > 0) {
+            return clinic.specialties.map((s) => ({
+                id: typeof s === 'object' ? (s.id || s.serviceId) : s,
+                name: typeof s === 'object' ? (s.name || s.specialtyName) : s
+            }));
+        }
+        return [];
+    }, [clinic]);
+
+    // Filter services dynamically to ONLY what the selected doctor offers
+    const doctorServices = useMemo(() => {
+        if (!currentDoctor) return allClinicServices;
+
+        const rawSpecialty = currentDoctor.specialty || currentDoctor.specialties;
+        if (!rawSpecialty) return allClinicServices;
+
+        let specialtyNames = [];
+        if (Array.isArray(rawSpecialty)) {
+            specialtyNames = rawSpecialty.map(s => (typeof s === 'object' ? (s.name || s.specialtyName) : s)?.trim().toLowerCase());
+        } else if (typeof rawSpecialty === 'string') {
+            specialtyNames = rawSpecialty.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+        }
+
+        if (specialtyNames.length === 0) return allClinicServices;
+
+        const filtered = allClinicServices.filter(srv =>
+            specialtyNames.includes(srv.name.trim().toLowerCase())
+        );
+
+        return filtered.length > 0 ? filtered : allClinicServices;
+    }, [currentDoctor, allClinicServices]);
+
+    // Sync selected services when doctor changes
     useEffect(() => {
-        if (!clinic?.clinicId || !selectedDayObj) return;
+        if (doctorServices.length > 0) {
+            setSelectedServiceIds(prev => {
+                const valid = prev.filter(id => doctorServices.some(ds => String(ds.id) === String(id)));
+                if (valid.length > 0) return valid;
+                return [doctorServices[0].id];
+            });
+        }
+    }, [doctorServices]);
+
+    // Fetch availability slots strictly based on backend schedule
+    useEffect(() => {
+        const currentClinicId = clinic?.clinicId || clinic?.id || effectiveClinicId;
+        if (!currentClinicId) return;
 
         let isMounted = true;
-        fetchAvailability(clinic.clinicId, selectedDayObj.dateStr, selectedDoctorId || undefined)
+        setLoadingSlots(true);
+
+        fetchAvailability({
+            clinicId: currentClinicId,
+            date: selectedDayObj.dateStr,
+            doctorId: selectedDoctorId || undefined
+        })
             .then(slots => {
                 if (!isMounted) return;
                 if (slots && Array.isArray(slots) && slots.length > 0) {
                     const mapped = slots.map(s => {
-                        const rawTime = s.time ? s.time.substring(0, 5) : '';
-                        let formattedTime = rawTime;
-                        if (rawTime) {
-                            const [h, m] = rawTime.split(':').map(Number);
-                            const ampm = h >= 12 ? 'PM' : 'AM';
-                            const hour = h % 12 || 12;
-                            formattedTime = `${String(hour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
-                        }
+                        const rawTime = s.time ? (s.time.length === 5 ? `${s.time}:00` : s.time) : '09:00:00';
+                        const [h, m] = rawTime.split(':').map(Number);
+                        const ampm = h >= 12 ? 'PM' : 'AM';
+                        const hour = h % 12 || 12;
                         return {
-                            time: formattedTime || s.time,
-                            rawTime: rawTime || s.time,
+                            time: `${String(hour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`,
+                            rawTime: rawTime,
                             available: s.available !== false,
                             scheduleId: s.scheduleId
                         };
@@ -216,24 +278,34 @@ export default function BookAppointment() {
         return () => {
             isMounted = false;
         };
-    }, [clinic?.clinicId, selectedDayObj, selectedDoctorId]);
+    }, [clinic?.clinicId, clinic?.id, effectiveClinicId, selectedDayObj, selectedDoctorId]);
 
-    // List of active clinic doctors
-    const activeDoctors = clinic?.doctors ? clinic.doctors.filter(doc => doc.isActive !== false) : [];
-
-    // List of available services
-    const clinicServices = (clinic?.services && clinic.services.length > 0)
-        ? clinic.services
-        : (clinic?.specialties && clinic.specialties.length > 0)
-            ? clinic.specialties
-            : ['General Dental Consultation', 'Teeth Cleaning', 'Emergency Dental Care'];
+    // Handle Service Checkbox Toggle with a 2-Service Limit
+    const handleToggleService = (serviceId) => {
+        setSelectedServiceIds(prev => {
+            if (prev.includes(serviceId)) {
+                return prev.filter(id => id !== serviceId);
+            } else {
+                if (prev.length >= 2) {
+                    setAlertConfig({
+                        open: true,
+                        title: 'Selection Limit Reached',
+                        message: 'You can select a maximum of 2 services per consultation visit.',
+                        type: 'warning'
+                    });
+                    return prev;
+                }
+                return [...prev, serviceId];
+            }
+        });
+    };
 
     // Formatted clinic hours
-    const displayHours = clinic?.workingHours || (clinic?.clinicHours ? mergeClinicHours(clinic.clinicHours) : 'Schedule available upon booking');
+    const displayHours = clinic?.workingHours || (clinic?.clinicHours ? mergeClinicHours(clinic.clinicHours) : '09:00 AM - 05:00 PM');
 
     // Sequential Step Completion Logic
     const isStep1Complete = Boolean(fullName.trim() && age.toString().trim());
-    const isStep2Complete = Boolean(isStep1Complete && selectedService);
+    const isStep2Complete = Boolean(isStep1Complete && selectedServiceIds.length > 0);
     const isStep3Complete = Boolean(isStep2Complete && selectedTimeSlot);
     const isStep4Complete = Boolean(isStep3Complete && paymentMethod);
 
@@ -250,7 +322,6 @@ export default function BookAppointment() {
     const handleConfirmBooking = async (e) => {
         e?.preventDefault();
 
-        // Sequential Validation
         if (!fullName.trim() || !age.toString().trim()) {
             setAlertConfig({
                 open: true,
@@ -261,11 +332,11 @@ export default function BookAppointment() {
             return;
         }
 
-        if (!selectedService) {
+        if (selectedServiceIds.length === 0) {
             setAlertConfig({
                 open: true,
                 title: 'Medical Service Required (Step 2)',
-                message: 'Please choose a dental service for your visit.',
+                message: 'Please select at least one healthcare service for your visit.',
                 type: 'warning'
             });
             return;
@@ -294,51 +365,48 @@ export default function BookAppointment() {
         setIsSubmitting(true);
 
         try {
-            // Find selected doctor object
-            const docObj = activeDoctors.find(d => String(d.doctorId) === String(selectedDoctorId));
-            const doctorName = docObj ? docObj.fullName : (activeDoctors[0]?.fullName || 'Specialist Doctor');
+            const clinicId = clinic?.clinicId || clinic?.id || effectiveClinicId;
+            const doctorId = selectedDoctorId || (activeDoctors[0]?.doctorId || activeDoctors[0]?.id);
 
-            // Format appointment time for backend (HH:mm:ss)
-            const timeSlotObj = availableSlots.find(s => s.time === selectedTimeSlot);
-            const rawTime = timeSlotObj?.rawTime || selectedTimeSlot;
-            const formattedTime = rawTime.length === 5 ? `${rawTime}:00` : rawTime;
-
-            const payload = {
-                clinicId: clinic.clinicId,
-                doctorId: selectedDoctorId ? Number(selectedDoctorId) : (activeDoctors[0]?.doctorId || null),
-                appointmentDate: selectedDayObj.dateStr,
-                appointmentTime: formattedTime,
-                service: selectedService,
-                paymentMethod: paymentMethod,
-                patientName: fullName,
-                patientAge: age ? Number(age) : null,
-                patientPhone: phoneNumber,
-                notes: notes
-            };
-
-            let responseData = null;
-            try {
-                responseData = await bookPatientAppointment(payload);
-            } catch (apiErr) {
-                // If network/endpoint fallback
-                console.warn('API booking response/fallback:', apiErr.message);
-                if (apiErr.message && !apiErr.message.includes('Failed to fetch') && !apiErr.message.includes('NetworkError')) {
-                    throw apiErr;
-                }
+            if (!doctorId) {
+                throw new Error("No active doctor is available for this clinic.");
             }
 
-            const deterministicBookingId = `BK-${payload.clinicId}-${payload.doctorId || 1}-${payload.appointmentDate.replace(/-/g, '')}`;
+            const timeSlotObj = availableSlots.find(s => s.time === selectedTimeSlot);
+            let rawTime = timeSlotObj?.rawTime || '09:00:00';
+            if (rawTime.length === 5) rawTime = `${rawTime}:00`;
+
+            const appointmentAt = `${selectedDayObj.dateStr}T${rawTime}`;
+
+            const payload = {
+                clinicId: clinicId,
+                doctorId: doctorId,
+                patientName: fullName.trim(),
+                patientAge: parseInt(age, 10),
+                serviceIds: selectedServiceIds,
+                appointmentAt: appointmentAt,
+                paymentMethod: paymentMethod.toUpperCase()
+            };
+
+            const responseData = await bookPatientAppointment(payload);
+
+            const docObj = activeDoctors.find(d => String(d.doctorId || d.id) === String(doctorId));
+            const selectedServiceNames = doctorServices
+                .filter(s => selectedServiceIds.includes(s.id))
+                .map(s => s.name)
+                .join(', ') || 'Dental Consultation';
+
             const bookingResult = {
-                bookingId: responseData?.id || responseData?.bookingId || deterministicBookingId,
-                patientName: fullName,
-                patientAge: age,
+                bookingId: responseData?.appointmentId || `BK-${Date.now().toString().slice(-6)}`,
+                patientName: responseData?.patientName || fullName,
+                patientAge: responseData?.patientAge || age,
                 patientPhone: phoneNumber,
                 clinicName: clinic?.clinicName || 'Dental Clinic',
-                doctorName: doctorName,
-                service: selectedService,
+                doctorName: docObj?.fullName || 'Specialist Doctor',
+                service: selectedServiceNames,
                 date: `${selectedDayObj.formattedDate}, ${selectedDayObj.fullDate.getFullYear()}`,
                 time: selectedTimeSlot,
-                paymentMethod: paymentMethod,
+                paymentMethod: paymentMethod.toUpperCase(),
                 notes: notes,
                 fee: clinic?.checkingFee ? `${clinic.checkingFee} JOD` : 'Standard Clinic Fee'
             };
@@ -356,7 +424,6 @@ export default function BookAppointment() {
         }
     };
 
-    // If no clinic was specified or error occurred
     if (clinicError && !clinic) {
         return (
             <div className="bg-slate-100 min-h-screen flex flex-col font-sans text-slate-700 antialiased">
@@ -401,93 +468,93 @@ export default function BookAppointment() {
             <PatientNavbar />
 
             <div className="flex-1 flex items-center justify-center p-4 lg:p-8">
-                {/* Main Card Container */}
                 <div className="bg-white rounded-[2rem] shadow-xl w-full max-w-6xl overflow-hidden flex flex-col min-h-[850px] relative border border-slate-100">
 
-                    {/* BEGIN: TopStepper (Dynamic Sequential Progression) */}
+                    {/* Stepper Progress */}
                     <div className="pt-8 pb-6 px-8 border-b border-slate-100 bg-white">
                         <div className="max-w-3xl mx-auto flex justify-between items-center relative z-10">
-
-                            {/* Step 1: Details */}
                             <div className="flex flex-col items-center relative z-10 w-1/4">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${isStep1Complete
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${
+                                    isStep1Complete
                                         ? 'bg-blue-600 text-white'
                                         : currentActiveStep === 1
                                             ? 'bg-blue-600 text-white ring-4 ring-blue-100'
                                             : 'bg-slate-100 text-slate-400'
-                                    }`}>
+                                }`}>
                                     {isStep1Complete ? <Check className="w-4 h-4 stroke-[3]" /> : '1'}
                                 </div>
-                                <span className={`text-xs font-bold transition-colors ${isStep1Complete || currentActiveStep === 1 ? 'text-blue-600' : 'text-slate-400'
-                                    }`}>
+                                <span className={`text-xs font-bold transition-colors ${
+                                    isStep1Complete || currentActiveStep === 1 ? 'text-blue-600' : 'text-slate-400'
+                                }`}>
                                     Details
                                 </span>
-                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${isStep1Complete ? 'bg-blue-600' : 'bg-slate-200'
-                                    }`} />
+                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${
+                                    isStep1Complete ? 'bg-blue-600' : 'bg-slate-200'
+                                }`} />
                             </div>
 
-                            {/* Step 2: Service */}
                             <div className="flex flex-col items-center relative z-10 w-1/4">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${isStep2Complete
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${
+                                    isStep2Complete
                                         ? 'bg-blue-600 text-white'
                                         : currentActiveStep === 2
                                             ? 'bg-blue-600 text-white ring-4 ring-blue-100'
                                             : 'bg-slate-100 text-slate-400'
-                                    }`}>
+                                }`}>
                                     {isStep2Complete ? <Check className="w-4 h-4 stroke-[3]" /> : '2'}
                                 </div>
-                                <span className={`text-xs font-bold transition-colors ${isStep2Complete || currentActiveStep === 2 ? 'text-blue-600' : 'text-slate-400'
-                                    }`}>
-                                    Service
+                                <span className={`text-xs font-bold transition-colors ${
+                                    isStep2Complete || currentActiveStep === 2 ? 'text-blue-600' : 'text-slate-400'
+                                }`}>
+                                    Services
                                 </span>
-                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${isStep2Complete ? 'bg-blue-600' : 'bg-slate-200'
-                                    }`} />
+                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${
+                                    isStep2Complete ? 'bg-blue-600' : 'bg-slate-200'
+                                }`} />
                             </div>
 
-                            {/* Step 3: Time */}
                             <div className="flex flex-col items-center relative z-10 w-1/4">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${isStep3Complete
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${
+                                    isStep3Complete
                                         ? 'bg-blue-600 text-white'
                                         : currentActiveStep === 3
                                             ? 'bg-blue-600 text-white ring-4 ring-blue-100'
                                             : 'bg-slate-100 text-slate-400'
-                                    }`}>
+                                }`}>
                                     {isStep3Complete ? <Check className="w-4 h-4 stroke-[3]" /> : '3'}
                                 </div>
-                                <span className={`text-xs font-bold transition-colors ${isStep3Complete || currentActiveStep === 3 ? 'text-blue-600' : 'text-slate-400'
-                                    }`}>
+                                <span className={`text-xs font-bold transition-colors ${
+                                    isStep3Complete || currentActiveStep === 3 ? 'text-blue-600' : 'text-slate-400'
+                                }`}>
                                     Time
                                 </span>
-                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${isStep3Complete ? 'bg-blue-600' : 'bg-slate-200'
-                                    }`} />
+                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${
+                                    isStep3Complete ? 'bg-blue-600' : 'bg-slate-200'
+                                }`} />
                             </div>
 
-                            {/* Step 4: Confirm */}
                             <div className="flex flex-col items-center relative z-10 w-1/4">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${bookingSuccessData
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${
+                                    bookingSuccessData
                                         ? 'bg-emerald-600 text-white'
                                         : isStep4Complete || currentActiveStep === 4
                                             ? 'bg-blue-600 text-white ring-4 ring-blue-100'
                                             : 'bg-slate-100 text-slate-400'
-                                    }`}>
+                                }`}>
                                     {bookingSuccessData ? <Check className="w-4 h-4 stroke-[3]" /> : '4'}
                                 </div>
-                                <span className={`text-xs font-bold transition-colors ${bookingSuccessData ? 'text-emerald-600' : isStep4Complete || currentActiveStep === 4 ? 'text-blue-600' : 'text-slate-400'
-                                    }`}>
+                                <span className={`text-xs font-bold transition-colors ${
+                                    bookingSuccessData ? 'text-emerald-600' : isStep4Complete || currentActiveStep === 4 ? 'text-blue-600' : 'text-slate-400'
+                                }`}>
                                     Confirm
                                 </span>
                             </div>
-
                         </div>
                     </div>
-                    {/* END: TopStepper */}
 
-                    {/* BEGIN: ContentArea */}
+                    {/* Main Content */}
                     <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-
-                        {/* BEGIN: MainFormArea */}
                         <main className="flex-1 overflow-y-auto p-8 lg:p-12 pb-36 lg:pb-36 bg-white lg:border-r border-slate-100">
-
                             <header className="mb-8">
                                 <div className="flex items-center gap-2 mb-2">
                                     <button
@@ -508,8 +575,7 @@ export default function BookAppointment() {
                             </header>
 
                             <form onSubmit={handleConfirmBooking}>
-
-                                {/* Patient Information Section */}
+                                {/* 1. Patient Information */}
                                 <section className="mb-10">
                                     <div className="flex items-center justify-between mb-4">
                                         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -529,7 +595,6 @@ export default function BookAppointment() {
                                             </label>
                                             <input
                                                 id="fullName"
-                                                name="fullName"
                                                 type="text"
                                                 value={fullName}
                                                 onChange={(e) => setFullName(e.target.value)}
@@ -544,13 +609,12 @@ export default function BookAppointment() {
                                             </label>
                                             <input
                                                 id="age"
-                                                name="age"
                                                 type="number"
                                                 min="1"
                                                 max="120"
                                                 value={age}
                                                 onChange={(e) => setAge(e.target.value)}
-                                                placeholder="e.g. 35"
+                                                placeholder="e.g. 25"
                                                 required
                                                 className="w-full border border-slate-200 rounded-lg shadow-2xs focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm py-2.5 px-3.5 bg-slate-50/50 hover:bg-white focus:bg-white transition-all outline-none"
                                             />
@@ -561,7 +625,6 @@ export default function BookAppointment() {
                                             </label>
                                             <input
                                                 id="phoneNumber"
-                                                name="phoneNumber"
                                                 type="tel"
                                                 value={phoneNumber}
                                                 onChange={(e) => setPhoneNumber(e.target.value)}
@@ -574,47 +637,26 @@ export default function BookAppointment() {
 
                                 <hr className="border-slate-100 mb-8" />
 
-                                {/* Medical Service Section */}
+                                {/* 2. Doctor & Medical Services */}
                                 <section className="mb-10">
                                     <div className="flex items-center justify-between mb-4">
                                         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                                             <Stethoscope className="w-5 h-5 text-blue-600" />
-                                            2. Medical Service &amp; Doctor
+                                            2. Medical Services &amp; Doctor
                                         </h2>
                                         {isStep2Complete && (
                                             <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full flex items-center gap-1 border border-emerald-200">
-                                                <Check className="w-3 h-3 stroke-[3]" /> Service Selected
+                                                <Check className="w-3 h-3 stroke-[3]" /> {selectedServiceIds.length} Selected
                                             </span>
                                         )}
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-slate-700 mb-2" htmlFor="healthcareService">
-                                                Select Healthcare Service
-                                            </label>
-                                            <select
-                                                id="healthcareService"
-                                                name="healthcareService"
-                                                value={selectedService}
-                                                onChange={(e) => setSelectedService(e.target.value)}
-                                                className="w-full border border-slate-200 rounded-lg shadow-2xs focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm py-2.5 px-3.5 text-slate-700 bg-slate-50/50 hover:bg-white focus:bg-white transition-all outline-none cursor-pointer"
-                                                required
-                                            >
-                                                <option value="" disabled>Choose a service...</option>
-                                                {clinicServices.map((srv, idx) => (
-                                                    <option key={idx} value={srv}>
-                                                        {srv}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
-                                        {/* Doctor Selector from Clinic */}
+                                    <div className="space-y-5">
+                                        {/* Doctor Selector */}
                                         {activeDoctors.length > 0 && (
                                             <div>
                                                 <label className="block text-sm font-semibold text-slate-700 mb-2" htmlFor="doctorSelect">
-                                                    Select Doctor (Optional)
+                                                    Select Doctor
                                                 </label>
                                                 <select
                                                     id="doctorSelect"
@@ -625,21 +667,67 @@ export default function BookAppointment() {
                                                     }}
                                                     className="w-full border border-slate-200 rounded-lg shadow-2xs focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm py-2.5 px-3.5 text-slate-700 bg-slate-50/50 hover:bg-white focus:bg-white transition-all outline-none cursor-pointer"
                                                 >
-                                                    <option value="">Any Available Doctor in Clinic</option>
                                                     {activeDoctors.map((doc) => (
-                                                        <option key={doc.doctorId} value={doc.doctorId}>
+                                                        <option key={doc.doctorId || doc.id} value={doc.doctorId || doc.id}>
                                                             {doc.fullName} {doc.specialty ? `— (${doc.specialty})` : ''}
                                                         </option>
                                                     ))}
                                                 </select>
                                             </div>
                                         )}
+
+                                        {/* Dynamic Doctor Services Checkboxes */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2.5">
+                                                <label className="block text-sm font-semibold text-slate-700">
+                                                    Select Healthcare Services (Choose up to 2)
+                                                </label>
+                                                <span className="text-xs text-slate-400 font-medium">
+                                                    {selectedServiceIds.length} / 2 selected
+                                                </span>
+                                            </div>
+
+                                            {doctorServices.length > 0 ? (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                    {doctorServices.map((srv) => {
+                                                        const isChecked = selectedServiceIds.includes(srv.id);
+                                                        const isLimitReached = selectedServiceIds.length >= 2 && !isChecked;
+
+                                                        return (
+                                                            <label
+                                                                key={srv.id}
+                                                                className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all select-none shadow-2xs ${
+                                                                    isChecked
+                                                                        ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500 text-blue-900 font-bold cursor-pointer'
+                                                                        : isLimitReached
+                                                                            ? 'bg-slate-100/60 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                                                                            : 'bg-slate-50/60 border-slate-200 hover:bg-white hover:border-slate-300 text-slate-700 cursor-pointer'
+                                                                }`}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    disabled={isLimitReached}
+                                                                    checked={isChecked}
+                                                                    onChange={() => handleToggleService(srv.id)}
+                                                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 accent-blue-600 shrink-0"
+                                                                />
+                                                                <span className="text-xs leading-snug">{srv.name}</span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 text-center text-slate-400 text-xs">
+                                                    No specialty services currently listed for this doctor.
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </section>
 
                                 <hr className="border-slate-100 mb-8" />
 
-                                {/* Preferred Date & Time Section */}
+                                {/* 3. Preferred Date & Time */}
                                 <section className="mb-10">
                                     <div className="flex items-center justify-between mb-4">
                                         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -657,7 +745,6 @@ export default function BookAppointment() {
                                         Select a Day
                                     </label>
 
-                                    {/* Day Selector (Horizontal Scrollable) */}
                                     <div className="flex space-x-3 mb-6 overflow-x-auto pb-2 scrollbar-none">
                                         {upcomingDays.map((day) => {
                                             const isSelected = selectedDayObj.dateStr === day.dateStr;
@@ -669,10 +756,11 @@ export default function BookAppointment() {
                                                         setSelectedDayObj(day);
                                                         setSelectedTimeSlot('');
                                                     }}
-                                                    className={`shrink-0 w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer shadow-2xs ${isSelected
+                                                    className={`shrink-0 w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer shadow-2xs ${
+                                                        isSelected
                                                             ? 'border-2 border-blue-600 bg-blue-50 text-blue-700 font-bold scale-[1.03]'
                                                             : 'border border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50 text-slate-700'
-                                                        }`}
+                                                    }`}
                                                 >
                                                     <span className={`text-xs font-bold mb-0.5 ${isSelected ? 'text-blue-600' : 'text-slate-800'}`}>
                                                         {day.dayName}
@@ -696,49 +784,50 @@ export default function BookAppointment() {
                                         )}
                                     </div>
 
-                                    {/* Time Slots Grid from Backend */}
                                     {availableSlots.length > 0 ? (
                                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                             {availableSlots.map((slot, sIdx) => {
                                                 const isSelected = selectedTimeSlot === slot.time || selectedTimeSlot === slot.rawTime;
-                                                if (!slot.available) {
-                                                    return (
-                                                        <button
-                                                            key={sIdx}
-                                                            disabled
-                                                            type="button"
-                                                            className="py-2.5 px-3 rounded-lg border border-slate-100 bg-slate-50 text-slate-400 text-sm font-medium cursor-not-allowed text-center opacity-50"
-                                                        >
-                                                            {slot.time}
-                                                        </button>
-                                                    );
-                                                }
+                                                const isSlotAvailable = slot.available !== false;
 
                                                 return (
                                                     <button
                                                         key={sIdx}
                                                         type="button"
-                                                        onClick={() => setSelectedTimeSlot(slot.time)}
-                                                        className={`py-2.5 px-3 rounded-lg text-sm font-semibold text-center transition-all cursor-pointer shadow-2xs ${isSelected
-                                                                ? 'border-2 border-blue-600 bg-blue-600 text-white scale-[1.02] shadow-sm'
-                                                                : 'border border-blue-200 text-blue-700 bg-blue-50/40 hover:bg-blue-50 hover:border-blue-300'
-                                                            }`}
+                                                        disabled={!isSlotAvailable}
+                                                        onClick={() => {
+                                                            if (isSlotAvailable) setSelectedTimeSlot(slot.time);
+                                                        }}
+                                                        className={`py-2.5 px-3 rounded-lg text-sm font-semibold text-center transition-all ${
+                                                            !isSlotAvailable
+                                                                ? 'border border-slate-200 bg-slate-100/80 text-slate-400 cursor-not-allowed opacity-60 shadow-none'
+                                                                : isSelected
+                                                                    ? 'border-2 border-blue-600 bg-blue-600 text-white scale-[1.02] shadow-sm cursor-pointer'
+                                                                    : 'border border-blue-200 text-blue-700 bg-blue-50/40 hover:bg-blue-50 hover:border-blue-300 cursor-pointer shadow-2xs'
+                                                        }`}
                                                     >
-                                                        {slot.time}
+                                                        <span className={!isSlotAvailable ? 'line-through' : ''}>
+                                                            {slot.time}
+                                                        </span>
+                                                        {!isSlotAvailable && (
+                                                            <span className="block text-[10px] text-slate-400 font-normal">
+                                                                Booked
+                                                            </span>
+                                                        )}
                                                     </button>
                                                 );
                                             })}
                                         </div>
                                     ) : (
-                                        <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-6 text-center text-slate-400 text-sm">
-                                            No available time slots on this date for the selected doctor/clinic.
+                                        <div className="bg-rose-50/60 border border-rose-100 rounded-2xl p-6 text-center text-rose-600 text-xs font-bold">
+                                            Clinic is closed or no doctor shifts are scheduled on this date.
                                         </div>
                                     )}
                                 </section>
 
                                 <hr className="border-slate-100 mb-8" />
 
-                                {/* Payment Details Section */}
+                                {/* 4. Payment Details */}
                                 <section className="mb-8">
                                     <div className="flex items-center justify-between mb-4">
                                         <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
@@ -758,17 +847,14 @@ export default function BookAppointment() {
                                             </label>
                                             <select
                                                 id="paymentMethod"
-                                                name="paymentMethod"
                                                 value={paymentMethod}
                                                 onChange={(e) => setPaymentMethod(e.target.value)}
                                                 className="w-full border border-slate-200 rounded-lg shadow-2xs focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm py-2.5 px-3.5 text-slate-700 bg-slate-50/50 hover:bg-white focus:bg-white transition-all outline-none cursor-pointer"
                                                 required
                                             >
                                                 <option value="" disabled>Select payment option...</option>
-                                                <option value="cash">Pay Cash at Clinic (Upon Arrival)</option>
-                                                <option value="credit">Credit Card (Visa / Mastercard)</option>
-                                                <option value="debit">Debit Card</option>
-                                                <option value="insurance">Dental Insurance Coverage</option>
+                                                <option value="CASH">Pay Cash at Clinic (Upon Arrival)</option>
+                                                <option value="CREDIT">Credit Card (Visa / Mastercard)</option>
                                             </select>
                                         </div>
 
@@ -781,21 +867,17 @@ export default function BookAppointment() {
                                                 rows="2"
                                                 value={notes}
                                                 onChange={(e) => setNotes(e.target.value)}
-                                                placeholder="e.g. sensitivity in upper molars, need routine cleaning..."
+                                                placeholder="e.g. routine checkup, pain in back molars..."
                                                 className="w-full border border-slate-200 rounded-lg shadow-2xs focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm py-2.5 px-3.5 bg-slate-50/50 hover:bg-white focus:bg-white transition-all outline-none resize-none"
                                             />
                                         </div>
                                     </div>
                                 </section>
-
                             </form>
                         </main>
-                        {/* END: MainFormArea */}
 
-                        {/* BEGIN: Sidebar */}
+                        {/* Sidebar */}
                         <aside className="w-full lg:w-[340px] bg-slate-50/60 p-6 lg:p-8 flex flex-col gap-6 shrink-0 border-t lg:border-t-0 border-slate-100">
-
-                            {/* Clinic Info Card */}
                             <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
                                 <h3 className="text-base font-bold text-blue-700 flex items-center gap-2 mb-4">
                                     <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
@@ -806,26 +888,23 @@ export default function BookAppointment() {
                                     <div className="flex items-start gap-3">
                                         <MapPin className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" />
                                         <span className="leading-snug">
-                                            {clinic?.detailedAddress || clinic?.city || 'Address provided upon booking'}
+                                            {clinic?.detailedAddress || clinic?.city || 'Amman, Jordan'}
                                         </span>
                                     </div>
 
                                     <div className="flex items-start gap-3">
                                         <Clock className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" />
-                                        <span className="leading-snug">
-                                            {displayHours}
-                                        </span>
+                                        <span className="leading-snug">{displayHours}</span>
                                     </div>
 
                                     <div className="flex items-start gap-3">
                                         <Phone className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" />
                                         <span className="leading-snug">
-                                            {clinic?.phoneNumber || 'Phone not available'}
+                                            {clinic?.phoneNumber || '07 9999 9999'}
                                         </span>
                                     </div>
                                 </div>
 
-                                {/* Actual Clinic Photo from Project */}
                                 <div className="mt-4 rounded-xl overflow-hidden h-36 relative border border-slate-100 bg-slate-100">
                                     <img
                                         alt={clinic?.clinicName || 'Clinic Building'}
@@ -842,14 +921,13 @@ export default function BookAppointment() {
                                 </div>
                             </div>
 
-                            {/* Help Card */}
                             <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm">
                                 <h4 className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1.5">
                                     <AlertCircle className="w-4 h-4 text-blue-600" />
                                     Need Help?
                                 </h4>
                                 <p className="text-xs text-slate-500 mb-3 leading-relaxed">
-                                    If you require immediate assistance, urgent pain relief or emergency dental surgery, please call emergency services.
+                                    If you require urgent assistance or emergency care, contact clinic support directly.
                                 </p>
                                 <a
                                     className="text-xs font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1 transition-colors"
@@ -859,16 +937,11 @@ export default function BookAppointment() {
                                     <span>→</span>
                                 </a>
                             </div>
-
                         </aside>
-                        {/* END: Sidebar */}
-
                     </div>
-                    {/* END: ContentArea */}
 
-                    {/* BEGIN: Fixed Bottom Actions & Footer */}
+                    {/* Bottom Action Footer */}
                     <div className="border-t border-slate-200/80 bg-white">
-                        {/* Action Buttons */}
                         <div className="flex justify-end gap-3 px-8 py-4 w-full lg:w-[calc(100%-340px)] bg-slate-50/60">
                             <button
                                 onClick={() => navigate(-1)}
@@ -889,12 +962,11 @@ export default function BookAppointment() {
                                         <span>Confirming...</span>
                                     </>
                                 ) : (
-                                    <span>Confirm</span>
+                                    <span>Confirm Booking</span>
                                 )}
                             </button>
                         </div>
 
-                        {/* Footer with App Logo */}
                         <footer className="px-8 py-3.5 bg-slate-100 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 border-t border-slate-200/60">
                             <div className="font-bold text-blue-900 mb-2 sm:mb-0 flex items-center gap-2">
                                 <div className="w-5 h-5 rounded-md bg-white border border-slate-200 flex items-center justify-center p-0.5 overflow-hidden shadow-2xs">
@@ -905,21 +977,17 @@ export default function BookAppointment() {
                             <div className="flex gap-4 mb-2 sm:mb-0">
                                 <a className="hover:text-blue-600 transition-colors" href="#">Privacy Policy</a>
                                 <a className="hover:text-blue-600 transition-colors" href="#">Terms of Service</a>
-                                <a className="hover:text-blue-600 transition-colors" href="#">Contact Support</a>
-                                <a className="hover:text-blue-600 transition-colors" href="#">Help Center</a>
                             </div>
                             <div className="text-slate-400">© 2026 DrSnna Health</div>
                         </footer>
                     </div>
-                    {/* END: Fixed Bottom Actions & Footer */}
-
                 </div>
             </div>
 
-            {/* Confirmation Success Modal */}
+            {/* Success Modal */}
             {bookingSuccessData && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-[fadeIn_0.2s_ease-out]">
-                    <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-slate-100 text-center animate-[scaleIn_0.25s_ease-out]">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+                    <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-slate-100 text-center">
                         <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
                             <CheckCircle2 className="w-10 h-10" />
                         </div>
@@ -928,7 +996,7 @@ export default function BookAppointment() {
                             Appointment Confirmed!
                         </h2>
                         <p className="text-sm text-slate-500 mb-6">
-                            Your dental visit has been successfully booked with the clinic.
+                            Your dental visit has been successfully registered in the system.
                         </p>
 
                         <div className="bg-slate-50 rounded-2xl p-4 text-left space-y-2.5 mb-6 text-xs border border-slate-100">
@@ -938,7 +1006,7 @@ export default function BookAppointment() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-slate-400 font-medium">Patient:</span>
-                                <span className="font-bold text-slate-800">{bookingSuccessData.patientName} {bookingSuccessData.patientAge ? `(Age: ${bookingSuccessData.patientAge})` : ''}</span>
+                                <span className="font-bold text-slate-800">{bookingSuccessData.patientName} (Age: {bookingSuccessData.patientAge})</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-slate-400 font-medium">Clinic:</span>
@@ -949,7 +1017,7 @@ export default function BookAppointment() {
                                 <span className="font-bold text-slate-800">{bookingSuccessData.doctorName}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400 font-medium">Service:</span>
+                                <span className="text-slate-400 font-medium">Services:</span>
                                 <span className="font-bold text-slate-800">{bookingSuccessData.service}</span>
                             </div>
                             <div className="flex justify-between">
@@ -958,40 +1026,28 @@ export default function BookAppointment() {
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-slate-400 font-medium">Payment:</span>
-                                <span className="font-bold text-slate-800 capitalize">{bookingSuccessData.paymentMethod}</span>
+                                <span className="font-bold text-slate-800">{bookingSuccessData.paymentMethod}</span>
                             </div>
-                            {bookingSuccessData.notes && (
-                                <div className="flex justify-between border-t border-slate-200/60 pt-2 mt-2">
-                                    <span className="text-slate-400 font-medium flex items-center gap-1">
-                                        <FileText className="w-3 h-3" />
-                                        Notes:
-                                    </span>
-                                    <span className="font-medium text-slate-700 italic max-w-[250px] text-right truncate">
-                                        {bookingSuccessData.notes}
-                                    </span>
-                                </div>
-                            )}
                         </div>
 
                         <div className="flex gap-3">
                             <button
-                                onClick={() => navigate('/')}
+                                onClick={() => navigate('/profile')}
                                 className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all cursor-pointer"
                             >
-                                Back to Home
+                                View in Profile
                             </button>
                             <button
-                                onClick={() => navigate(`/clinic-details/${clinic?.clinicId || effectiveClinicId}`)}
+                                onClick={() => navigate('/')}
                                 className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all cursor-pointer shadow-md shadow-blue-500/20"
                             >
-                                View Clinic
+                                Done
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Modern Alert Modal for Input Validation */}
             <ModernAlertModal
                 isOpen={alertConfig.open}
                 onClose={() => setAlertConfig(prev => ({ ...prev, open: false }))}

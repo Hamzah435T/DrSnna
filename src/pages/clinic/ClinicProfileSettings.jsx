@@ -457,20 +457,31 @@ export default function ClinicProfileSettings() {
     const [specialtyModal, setSpecialtyModal] = useState({ open: false, name: "" });
     const [deletingSpecialty, setDeletingSpecialty] = useState(null);
 
-    function handleSaveSpecialty() {
+    async function handleSaveSpecialty() {
         const newName = specialtyModal.name.trim();
         if (!newName) return;
 
-        setForm((current) => ({
-            ...current,
-            specialties: {
-                ...current.specialties,
-                [newName]: true,
-            },
-        }));
+        try {
+            // fix specialty not showing when switching tab
+            await api.addSpecialty(newName);
 
-        setSpecialtyModal({ open: false, name: "" });
-        setSaved(false);
+            setForm((current) => ({
+                ...current,
+                specialties: {
+                    ...current.specialties,
+                    [newName]: true,
+                },
+            }));
+
+            setOriginalSpecialties((current) => ({
+                ...current,
+                [newName]: true,
+            }));
+
+            setSpecialtyModal({ open: false, name: "" });
+        } catch (err) {
+            setError(err.message || "Failed to add specialty");
+        }
     }
 
     async function handleDeleteSpecialty(name) {

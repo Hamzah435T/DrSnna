@@ -1,102 +1,272 @@
-import { getToken } from "../auth/authStorage";
+// src/api/patientApi.js
+import { getAuth } from "../auth/authStorage";
 
-const BASE_URL = "http://localhost:8080/api/patient";
+const BASE_URL = "http://localhost:8080/api";
 
 function authHeaders() {
+    const auth = getAuth();
     return {
-        Authorization: `Bearer ${getToken()}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        ...(auth?.token ? { Authorization: `Bearer ${auth.token}` } : {}),
     };
 }
 
-/** 
- * Search for clinics.
- * Note: fee and rating filters are not supported by the backend yet, 
- * so they will be handled client-side.
- */
-export async function searchClinics({ name, city, specialty, date, availableOnly }) {
-    const params = new URLSearchParams();
-    
-    if (name) params.append("name", name);
-    if (city && city !== "All Cities") {
-        // Map UI city names to backend ENUM
-        const cityMap = {
-            "Amman": "AMMAN",
-            "Irbid": "IRBID",
-            "Zarqa": "ZARQA",
-            "Aqaba": "AQABA",
-            "Salt": "BALQA",
-            "Mafraq": "MAFRAQ",
-            "Ajloun": "AJLOUN",
-            "Jerash": "JERASH",
-            "Madaba": "MADABA",
-            "Karak": "KARAK",
-            "Tafilah": "TAFILEH",
-            "Maan": "MAAN"
-        };
-        const mappedCity = cityMap[city];
-        if (mappedCity) params.append("city", mappedCity);
-    }
-    if (specialty && specialty !== "All Specialties") {
-        params.append("specialty", specialty);
-    }
-    if (date) {
-        params.append("date", date);
-    }
-    if (availableOnly) {
-        params.append("availableOnly", "true");
-    }
-
-    const res = await fetch(`${BASE_URL}/clinics?${params.toString()}`, {
-        headers: authHeaders()
+function cleanQueryParams(params = {}) {
+    if (typeof params === "string") return params;
+    const clean = {};
+    Object.entries(params).forEach(([key, value]) => {
+        if (
+            value !== undefined &&
+            value !== null &&
+            value !== "" &&
+            value !== "undefined" &&
+            value !== "null" &&
+            value !== "All-Cities" &&
+            value !== "All Cities" &&
+            value !== "All Specialties" &&
+            value !== "All"
+        ) {
+            clean[key] = value;
+        }
     });
-    
+    return new URLSearchParams(clean).toString();
+}
+
+// ── 1. Clinic Discovery Endpoints ─────────────────────────────────────
+export async function searchClinics(params = {}) {
+    const queryString = cleanQueryParams(params);
+    const url = `${BASE_URL}/patient/clinics${queryString ? `?${queryString}` : ""}`;
+
+    const res = await fetch(url, {
+        headers: authHeaders(),
+    });
+
     if (!res.ok) {
-        throw new Error("Failed to search clinics");
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to search clinics");
     }
-    
     return res.json();
 }
+export const getClinics = searchClinics;
+export const fetchClinics = searchClinics;
 
-/** Fetch full clinic details by ID. */
-export async function fetchClinicDetails(clinicId) {
-    const res = await fetch(`${BASE_URL}/clinics/${clinicId}`, {
-        headers: authHeaders()
+export async function getClinicDetails(clinicId) {
+    const res = await fetch(`${BASE_URL}/patient/clinics/${clinicId}`, {
+        headers: authHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to fetch clinic details");
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to load clinic details");
+    }
     return res.json();
 }
+export const fetchClinicDetails = getClinicDetails;
 
-/** Fetch availability slots for a clinic on a given date, optionally for a specific doctor. */
-export async function fetchAvailability(clinicId, date, doctorId) {
-    const params = new URLSearchParams({ date });
-    if (doctorId) params.append("doctorId", doctorId);
+// ── 2. Slot Availability Endpoint ────────────────────────────────────
+export async function fetchAvailability({ clinicId, date, doctorId } = {}) {
+    if (!clinicId || !date) return [];
 
-    const res = await fetch(`${BASE_URL}/clinics/${clinicId}/availability?${params.toString()}`, {
-        headers: authHeaders()
-    });
-    if (!res.ok) throw new Error("Failed to fetch availability");
-    return res.json();
+    const params = new URLSearchParams();
+    params.append("date", date);
+    if (doctorId && doctorId !== "undefined" && doctorId.trim() !== "") {
+        params.append("doctorId", doctorId);
+    }
+
+    try {
+        const res = await fetch(
+            `${BASE_URL}/patient/clinics/${clinicId}/availability?${params.toString()}`,
+            {
+                headers: authHeaders(),
+            }
+        );
+
+        if (!res.ok) return [];
+        return await res.json();
+    } catch {
+        return [];
+    }
 }
+export const getAvailability = fetchAvailability;
 
-/** Book an appointment as a patient */
-export async function bookPatientAppointment(appointmentData) {
-    const res = await fetch(`${BASE_URL}/appointments`, {
+// ── 3. Appointment Booking Endpoint ──────────────────────────────────
+export async function bookAppointment(payload) {
+    const res = await fetch(`${BASE_URL}/appointments/book`, {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify(appointmentData)
+        body: JSON.stringify(payload),
     });
+
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-        const errBody = await res.text();
-        let errMsg = "Failed to book appointment";
-        try {
-            const json = JSON.parse(errBody);
-            errMsg = json.message || errMsg;
-        } catch {
-            errMsg = `${errMsg}: ${errBody}`;
-        }
-        throw new Error(errMsg);
+        throw new Error(data.message || "Failed to complete appointment booking");
+    }
+    return data;
+}
+export const bookPatientAppointment = bookAppointment;
+
+// ── 4. Patient Appointments & History ────────────────────────────────
+export async function getPatientAppointments(scope = "upcoming") {
+    const res = await fetch(`${BASE_URL}/patient/appointments?scope=${scope}`, {
+        headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to load appointments");
+    }
+    return res.json();
+}
+export const fetchPatientAppointments = getPatientAppointments;
+
+export async function getAppointmentDetails(appointmentId) {
+    const res = await fetch(`${BASE_URL}/patient/appointments/${appointmentId}`, {
+        headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to load appointment details");
     }
     return res.json();
 }
 
+export async function cancelAppointment(appointmentId) {
+    const res = await fetch(`${BASE_URL}/patient/appointments/${appointmentId}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data.message || "Failed to cancel appointment");
+    }
+    return data;
+}
+
+// ── 5. Reviews ───────────────────────────────────────────────────────
+export async function createReview(reviewPayload) {
+    const res = await fetch(`${BASE_URL}/patient/reviews`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(reviewPayload),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data.message || "Failed to submit review");
+    }
+    return data;
+}
+
+// ── 6. Patient Favorites ─────────────────────────────────────────────
+export async function getPatientFavorites() {
+    const res = await fetch(`${BASE_URL}/patient/favorites`, {
+        headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to load favorite doctors");
+    }
+    return res.json();
+}
+
+export async function addDoctorToFavorites(doctorId) {
+    const res = await fetch(`${BASE_URL}/patient/favorites`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ doctorId }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data.message || "Failed to add favorite");
+    }
+    return data;
+}
+
+export async function removeDoctorFromFavorites(doctorId) {
+    const res = await fetch(`${BASE_URL}/patient/favorites/${doctorId}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data.message || "Failed to remove favorite");
+    }
+    return data;
+}
+
+// ── 7. Profile / Auth Endpoints ──────────────────────────────────────
+export async function getMyProfile() {
+    const res = await fetch(`${BASE_URL}/auth/me`, {
+        headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to load profile details");
+    }
+    return res.json();
+}
+export const getPatientProfile = getMyProfile;
+
+export async function updateMyProfile(profileData) {
+    const res = await fetch(`${BASE_URL}/auth/me`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify(profileData),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data.message || "Failed to update profile");
+    }
+    return data;
+}
+export const updatePatientProfile = updateMyProfile;
+
+// ── 8. Doctor View Endpoints ─────────────────────────────────────────
+export async function getDoctorAppointments(date = null, scope = "upcoming") {
+    const params = new URLSearchParams({ scope });
+    if (date) params.append("date", date);
+
+    const res = await fetch(`${BASE_URL}/doctor/appointments?${params.toString()}`, {
+        headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to load doctor appointments");
+    }
+    return res.json();
+}
+export const fetchDoctorAppointments = getDoctorAppointments;
+
+export async function getDoctorSchedule() {
+    const res = await fetch(`${BASE_URL}/doctor/schedule`, {
+        headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to load doctor schedule");
+    }
+    return res.json();
+}
+export const fetchDoctorSchedule = getDoctorSchedule;
+
+// ── 9. Wallet Endpoint ───────────────────────────────────────────────
+export async function getWallet() {
+    const res = await fetch(`${BASE_URL}/patient/wallet`, {
+        headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to load wallet details");
+    }
+    return res.json();
+}
