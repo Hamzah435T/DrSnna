@@ -1,8 +1,9 @@
 // src/pages/patient/UserProfile.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import  { useState, useEffect, useMemo,useRef} from 'react';
 import { useNavigate } from 'react-router';
 import { getAuth } from '../../auth/authStorage';
 import PatientNavbar from '../../components/PatientNavbar';
+import { login } from '../../api/authApi';
 import {
     getMyProfile,
     updateMyProfile,
@@ -28,14 +29,21 @@ import {
     ChevronLeft,
     ChevronRight,
     Plus,
-    Calendar as CalendarIcon
+
 } from 'lucide-react';
 import { utcToLocalRecurring, utcToLocalSpecific } from '../../utils/timezone';
 
 export default function UserProfile() {
     const navigate = useNavigate();
     const auth = getAuth();
+    const appointmentsSectionRef = useRef(null);
 
+    const scrollToAppointments = () => {
+        appointmentsSectionRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+        });
+    };
     // ── Profile State ──
     const [userData, setUserData] = useState({
         fullName: 'Loading...',
@@ -53,10 +61,12 @@ export default function UserProfile() {
     const isDoctor = auth?.role === 'DOCTOR' || userData.role === 'DOCTOR';
 
     // ── Edit Profile Modal State ──
+
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editStep, setEditStep] = useState('verify'); // 'verify' | 'form'
     const [verifyPassword, setVerifyPassword] = useState("");
     const [passwordError, setPasswordError] = useState("");
+    const [isVerifying, setIsVerifying] = useState(false);
     const [editForm, setEditForm] = useState({
         fullName: '',
         email: '',
@@ -70,11 +80,13 @@ export default function UserProfile() {
     const [historyFilter, setHistoryFilter] = useState('Past'); // 'Past' | 'Upcoming' | 'All'
     const [upcomingAppointments, setUpcomingAppointments] = useState([]);
     const [historyList, setHistoryList] = useState([]);
+    const [showAllUpcoming, setShowAllUpcoming] = useState(false);
 
     // ── Appointments & History State (Doctor) ──
     const [docHistoryFilter, setDocHistoryFilter] = useState('Past'); // 'Past' | 'Upcoming' | 'All'
     const [doctorAppointments, setDoctorAppointments] = useState([]);
     const [doctorSchedules, setDoctorSchedules] = useState([]);
+    const [showAllDocUpcoming, setShowAllDocUpcoming] = useState(false);
 
     // ── Doctor Calendar & Weekly View State ──
     const [calendarTab, setCalendarTab] = useState('Month'); // 'Month' | 'Week' | 'Day'
@@ -106,7 +118,7 @@ export default function UserProfile() {
                 role: profile.role || 'PATIENT',
                 city: profile.city || 'AMMAN',
                 email: profile.email || '',
-                phone: profile.phone || '07 9999 9999',
+                phone: profile.phone || '07 XXXX XXXX',
                 bio: profile.bio || '',
             }));
 
@@ -170,6 +182,11 @@ export default function UserProfile() {
         });
     }, [historyList, historyFilter]);
 
+    // Number of visits = number of appointments currently in Appointment History
+    const visitsCount = useMemo(() => {
+        return filteredHistoryList.length;
+    }, [filteredHistoryList]);
+
     // ── Filter Doctor Appointments: 1. Upcoming ──
     const upcomingDoctorAppointments = useMemo(() => {
         const now = new Date();
@@ -194,6 +211,16 @@ export default function UserProfile() {
             return true;
         });
     }, [doctorAppointments, docHistoryFilter]);
+
+// Patient: Show first 3 by default, or all when expanded
+    const displayedPatientUpcoming = useMemo(() => {
+        return showAllUpcoming ? upcomingAppointments : upcomingAppointments.slice(0, 3);
+    }, [upcomingAppointments, showAllUpcoming]);
+
+    // Doctor: Show first 3 by default, or all when expanded
+    const displayedDoctorUpcoming = useMemo(() => {
+        return showAllDocUpcoming ? upcomingDoctorAppointments : upcomingDoctorAppointments.slice(0, 3);
+    }, [upcomingDoctorAppointments, showAllDocUpcoming]);
 
     // ── Calendar Grid Computation ──
     const calendarDays = useMemo(() => {
@@ -290,7 +317,7 @@ export default function UserProfile() {
         setIsEditModalOpen(true);
     }
 
-    function handleVerifyPassword(e) {
+    async function handleVerifyPassword(e) {
         e.preventDefault();
         setPasswordError("");
 
@@ -298,8 +325,23 @@ export default function UserProfile() {
             setPasswordError("Please enter your current password to continue.");
             return;
         }
-        setEditStep('form');
-        setPasswordError("");
+
+        setIsVerifying(true);
+        try {
+            // Verify current password against backend credentials
+            await login({
+                email: userData.email,
+                password: verifyPassword
+            });
+
+            // Password is correct; unlock the edit form
+            setEditStep('form');
+            setPasswordError("");
+        } catch (err) {
+            setPasswordError("Incorrect password. Please enter your valid account password.");
+        } finally {
+            setIsVerifying(false);
+        }
     }
 
     async function handleSaveProfile(e) {
@@ -326,12 +368,13 @@ export default function UserProfile() {
         }
 
         try {
+            // Only send password fields if a new password was explicitly set
             const payload = {
                 fullName: editForm.fullName,
                 email: editForm.email,
                 city: editForm.city,
-                password: editForm.newPassword || verifyPassword,
-                confirmPassword: editForm.confirmPassword || verifyPassword
+                password: editForm.newPassword ? editForm.newPassword : null,
+                confirmPassword: editForm.newPassword ? editForm.confirmPassword : null
             };
 
             const updated = await updateMyProfile(payload);
@@ -347,7 +390,7 @@ export default function UserProfile() {
             setPasswordError("");
             setVerifyPassword("");
         } catch (err) {
-            setPasswordError(err.message || "Failed to update profile. Please check your current password.");
+            setPasswordError(err.message || "Failed to update profile.");
         }
     }
 
@@ -393,56 +436,32 @@ export default function UserProfile() {
 
             <main className="max-w-2xl mx-auto px-4 py-6 sm:py-8 space-y-6">
 
-                {/* ── TOP GREETING & PILL NAVIGATION ── */}
-                <div className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
-                    <div className="flex items-center gap-2 mb-6">
-                        <div className="h-10 w-10 rounded-2xl flex items-center justify-center text-white shadow-md shadow-blue-200">
-                            <img
-                                src="/logo.png"
-                                className="h-17 w-auto object-contain mix-blend-multiply"
-                                alt="Logo"
-                            />
-                        </div>
+
+                {/* ── 1. EDIT INFO SECTION ── */}
+
+                <section className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
+                    <div className="flex items-center justify-between mb-5">
+                        <h2 className="text-[26px] font-bold text-slate-900">Profile</h2>                        <div className="flex items-center gap-2 mb-6">
                         <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
                             <button className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-white text-blue-600 shadow-xs">
                                 Profile
                             </button>
                             <button
-                                onClick={() => navigate('/')}
-                                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-900"
+                                onClick={scrollToAppointments}
+                                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer transition-colors"
                             >
                                 Appointments
                             </button>
                             <button
+                                type="button"
                                 onClick={() => navigate('/')}
-                                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-900"
+                                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer transition-colors"
                             >
                                 Book
                             </button>
                         </div>
                     </div>
 
-                    <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                        Good afternoon, {userData.fullName.split(' ')[0]}
-                    </h1>
-                    <p className="text-xs text-slate-500 mt-1">
-                        Track your appointments, bookings and schedule — all in one place.
-                    </p>
-
-                    <div className="flex items-center gap-2 mt-4">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 text-xs font-semibold">
-                            🔔
-                        </div>
-                        <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
-                            {userInitials}
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── 1. EDIT INFO SECTION ── */}
-                <section className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
-                    <div className="flex items-center justify-between mb-5">
-                        <h2 className="text-base font-bold text-slate-900">Edit Info</h2>
                         <button
                             onClick={handleOpenEditModal}
                             className="p-2 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
@@ -457,21 +476,13 @@ export default function UserProfile() {
                             <div className="w-16 h-16 rounded-full bg-indigo-500 text-white font-bold text-xl flex items-center justify-center shadow-inner">
                                 {userInitials}
                             </div>
-                            <button
-                                onClick={handleOpenEditModal}
-                                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-slate-200 text-blue-600 flex items-center justify-center shadow-xs"
-                            >
-                                <Edit3 className="w-3 h-3" />
-                            </button>
                         </div>
 
                         <div>
                             <h3 className="text-lg font-bold text-slate-900 leading-tight">
                                 {userData.fullName}
                             </h3>
-                            <p className="text-xs text-slate-400 mt-0.5">
-                                {isDoctor ? 'Doctor Account' : 'Patient Account'}
-                            </p>
+
                             <div className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-[11px] font-medium mt-1.5">
                                 <MapPin className="w-3 h-3 text-indigo-500" />
                                 {userData.city}
@@ -501,17 +512,10 @@ export default function UserProfile() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={handleOpenEditModal}
-                        className="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold transition-all text-center cursor-pointer"
-                    >
-                        Edit profile
-                    </button>
-
                     {/* Stats counters */}
                     <div className="grid grid-cols-3 gap-2 mt-6 pt-5 border-t border-slate-100 text-center">
                         <div>
-                            <span className="text-xl font-extrabold text-slate-900 block">{userData.visits}</span>
+                            <span className="text-xl font-extrabold text-slate-900 block">{String(isDoctor ? userData.visits : visitsCount).padStart(2, '0')}</span>
                             <span className="text-[11px] text-slate-400 font-medium">Visits</span>
                         </div>
                         <div className="border-x border-slate-100">
@@ -531,19 +535,28 @@ export default function UserProfile() {
 
                 {/* ── 2. UPCOMING APPOINTMENTS SECTION (PATIENT ONLY) ── */}
                 {!isDoctor && (
-                    <section className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
+                    <section
+                        ref={appointmentsSectionRef}
+                        className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100 scroll-mt-6"
+                    >
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-base font-bold text-slate-900">Upcoming Appointments</h2>
-                            <button onClick={() => setHistoryFilter('Upcoming')} className="text-xs font-bold text-blue-600 hover:underline cursor-pointer">
-                                View all
-                            </button>
+                            {upcomingAppointments.length > 3 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAllUpcoming(prev => !prev)}
+                                    className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                                >
+                                    {showAllUpcoming ? 'Show less' : `View all (${upcomingAppointments.length})`}
+                                </button>
+                            )}
                         </div>
 
                         {upcomingAppointments.length === 0 ? (
                             <p className="text-xs text-slate-400 py-4 text-center">No upcoming appointments booked.</p>
                         ) : (
                             <div className="space-y-3">
-                                {upcomingAppointments.map((apt) => (
+                                {displayedPatientUpcoming.map((apt) => (
                                     <div
                                         key={apt.appointmentId}
                                         className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all"
@@ -554,12 +567,14 @@ export default function UserProfile() {
                                             </div>
                                             <div>
                                                 <h4 className="text-xs font-bold text-slate-900">{apt.doctorName || 'Doctor Appointment'}</h4>
-                                                <p className="text-[11px] text-slate-400">{apt.serviceName || apt.serviceNames?.join(', ') || 'Dental Service'} · {formatDateTime(apt.appointmentAt)}</p>
+                                                <p className="text-[11px] text-slate-400">
+                                                    {apt.serviceName || apt.serviceNames?.join(', ') || 'Dental Service'} · {formatDateTime(apt.appointmentAt)}
+                                                </p>
                                             </div>
                                         </div>
                                         <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
-                                            {apt.status}
-                                        </span>
+                            {apt.status}
+                        </span>
                                     </div>
                                 ))}
                             </div>
@@ -609,7 +624,7 @@ export default function UserProfile() {
                                             <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${isCancelled
                                                 ? 'bg-rose-50 text-rose-600 border border-rose-200'
                                                 : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                                                }`}>
+                                            }`}>
                                                 {statusLabel}
                                             </span>
                                         </div>
@@ -642,7 +657,7 @@ export default function UserProfile() {
 
                             <span className="text-[10px] uppercase font-medium opacity-80 block">Available balance</span>
                             <div className="text-2xl font-black tracking-tight mt-0.5 mb-6">
-                                JOD 125.00
+                                JOD 0.00
                             </div>
 
                             <div className="flex justify-between items-center text-xs font-mono opacity-80">
@@ -705,19 +720,28 @@ export default function UserProfile() {
                     <div className="space-y-6">
 
                         {/* 1. Doctor Upcoming Appointments */}
-                        <section className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
+                        <section
+                            ref={appointmentsSectionRef}
+                            className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100 scroll-mt-6"
+                        >
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-base font-bold text-slate-900">Upcoming Appointments</h2>
-                                <button onClick={() => setDocHistoryFilter('Upcoming')} className="text-xs font-bold text-blue-600 hover:underline cursor-pointer">
-                                    View all
-                                </button>
+                                {upcomingDoctorAppointments.length > 3 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAllDocUpcoming(prev => !prev)}
+                                        className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                                    >
+                                        {showAllDocUpcoming ? 'Show less' : `View all (${upcomingDoctorAppointments.length})`}
+                                    </button>
+                                )}
                             </div>
 
                             {upcomingDoctorAppointments.length === 0 ? (
                                 <p className="text-xs text-slate-400 py-4 text-center">No upcoming appointments booked.</p>
                             ) : (
                                 <div className="space-y-3">
-                                    {upcomingDoctorAppointments.map((item) => (
+                                    {displayedDoctorUpcoming.map((item) => (
                                         <div
                                             key={item.appointmentId}
                                             className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all"
@@ -737,14 +761,13 @@ export default function UserProfile() {
                                             </div>
 
                                             <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
-                                                {item.status}
-                                            </span>
+                        {item.status}
+                    </span>
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </section>
-
                         {/* 2. Doctor Appointment History */}
                         <section className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
                             <div className="flex items-center justify-between mb-4">
@@ -786,7 +809,7 @@ export default function UserProfile() {
                                                 <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${isCancelled
                                                     ? 'bg-rose-50 text-rose-600 border border-rose-200'
                                                     : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                                                    }`}>
+                                                }`}>
                                                     {statusLabel}
                                                 </span>
                                             </div>
@@ -811,68 +834,68 @@ export default function UserProfile() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left text-xs">
                                         <thead>
-                                            <tr className="text-slate-400 border-b border-slate-100 font-semibold uppercase tracking-wider text-[10px]">
-                                                <th className="py-3 px-2">ID</th>
-                                                <th className="py-3 px-2">SCHEDULE / SHIFT</th>
-                                                <th className="py-3 px-2">TIME &amp; DATE</th>
-                                                <th className="py-3 px-2">DOCTOR</th>
-                                                <th className="py-3 px-2 text-right">STATUS</th>
-                                            </tr>
+                                        <tr className="text-slate-400 border-b border-slate-100 font-semibold uppercase tracking-wider text-[10px]">
+                                            <th className="py-3 px-2">ID</th>
+                                            <th className="py-3 px-2">SCHEDULE / SHIFT</th>
+                                            <th className="py-3 px-2">TIME &amp; DATE</th>
+                                            <th className="py-3 px-2">DOCTOR</th>
+                                            <th className="py-3 px-2 text-right">STATUS</th>
+                                        </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-50">
-                                            {doctorSchedules.map((row) => {
-                                                // Convert UTC schedule to Local Time
-                                                let localDateStr = row.specificDate;
-                                                let localDayStr = row.dayOfWeek;
-                                                let localStart = row.startTime ? row.startTime.substring(0, 5) : "";
-                                                let localEnd = row.endTime ? row.endTime.substring(0, 5) : "";
+                                        {doctorSchedules.map((row) => {
+                                            // Convert UTC schedule to Local Time
+                                            let localDateStr = row.specificDate;
+                                            let localDayStr = row.dayOfWeek;
+                                            let localStart = row.startTime ? row.startTime.substring(0, 5) : "";
+                                            let localEnd = row.endTime ? row.endTime.substring(0, 5) : "";
 
-                                                if (row.specificDate) {
-                                                    const start = utcToLocalSpecific(row.specificDate, localStart || "00:00");
-                                                    const end = utcToLocalSpecific(row.specificDate, localEnd || "00:00");
-                                                    localDateStr = start.localDate;
-                                                    localStart = row.startTime ? start.localTime : "";
-                                                    localEnd = row.endTime ? end.localTime : "";
-                                                } else if (row.dayOfWeek) {
-                                                    const start = utcToLocalRecurring(row.dayOfWeek, localStart || "00:00");
-                                                    const end = utcToLocalRecurring(row.dayOfWeek, localEnd || "00:00");
-                                                    localDayStr = start.localDayOfWeek;
-                                                    localStart = row.startTime ? start.localTime : "";
-                                                    localEnd = row.endTime ? end.localTime : "";
-                                                }
+                                            if (row.specificDate) {
+                                                const start = utcToLocalSpecific(row.specificDate, localStart || "00:00");
+                                                const end = utcToLocalSpecific(row.specificDate, localEnd || "00:00");
+                                                localDateStr = start.localDate;
+                                                localStart = row.startTime ? start.localTime : "";
+                                                localEnd = row.endTime ? end.localTime : "";
+                                            } else if (row.dayOfWeek) {
+                                                const start = utcToLocalRecurring(row.dayOfWeek, localStart || "00:00");
+                                                const end = utcToLocalRecurring(row.dayOfWeek, localEnd || "00:00");
+                                                localDayStr = start.localDayOfWeek;
+                                                localStart = row.startTime ? start.localTime : "";
+                                                localEnd = row.endTime ? end.localTime : "";
+                                            }
 
-                                                return (
-                                                    <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
-                                                        <td className="py-3.5 px-2 font-semibold text-slate-400">
-                                                            #{row.id}
-                                                        </td>
-                                                        <td className="py-3.5 px-2">
+                                            return (
+                                                <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
+                                                    <td className="py-3.5 px-2 font-semibold text-slate-400">
+                                                        #{row.id}
+                                                    </td>
+                                                    <td className="py-3.5 px-2">
                                                             <span className="font-bold text-slate-900 block leading-tight">
                                                                 {row.type === 'DOCTOR_SHIFT' ? 'Doctor Shift Consultation' : row.type}
                                                             </span>
-                                                        </td>
-                                                        <td className="py-3.5 px-2 text-slate-600 whitespace-nowrap">
-                                                            {localDateStr || localDayStr || 'Recurring'}
-                                                            <span className="block text-[10px] text-slate-400">{localStart} - {localEnd}</span>
-                                                        </td>
-                                                        <td className="py-3.5 px-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-6 h-6 rounded-full bg-amber-500 text-white font-bold text-[9px] flex items-center justify-center shrink-0">
-                                                                    {userInitials}
-                                                                </div>
-                                                                <span className="font-medium text-slate-800 text-[11px] truncate max-w-[100px]">
+                                                    </td>
+                                                    <td className="py-3.5 px-2 text-slate-600 whitespace-nowrap">
+                                                        {localDateStr || localDayStr || 'Recurring'}
+                                                        <span className="block text-[10px] text-slate-400">{localStart} - {localEnd}</span>
+                                                    </td>
+                                                    <td className="py-3.5 px-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-6 h-6 rounded-full bg-amber-500 text-white font-bold text-[9px] flex items-center justify-center shrink-0">
+                                                                {userInitials}
+                                                            </div>
+                                                            <span className="font-medium text-slate-800 text-[11px] truncate max-w-[100px]">
                                                                     {userData.fullName.split(' ')[0]}
                                                                 </span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-3.5 px-2 text-right">
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3.5 px-2 text-right">
                                                             <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
                                                                 Approved
                                                             </span>
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            })}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -892,7 +915,7 @@ export default function UserProfile() {
                                         className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${calendarTab === tab
                                             ? 'bg-white text-blue-600 shadow-xs'
                                             : 'text-slate-500 hover:text-slate-900'
-                                            }`}
+                                        }`}
                                     >
                                         {tab}
                                     </button>
@@ -956,7 +979,7 @@ export default function UserProfile() {
                                                     ? 'bg-blue-50/50 border-blue-200'
                                                     : 'bg-white border-slate-100 hover:border-slate-200'
                                                 : 'bg-slate-50/40 border-transparent opacity-40'
-                                                }`}
+                                            }`}
                                         >
                                             <span
                                                 className={`text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday
@@ -964,7 +987,7 @@ export default function UserProfile() {
                                                     : cell.isCurrentMonth
                                                         ? (idx % 7 === 5 || idx % 7 === 6) ? 'text-rose-500' : 'text-slate-800'
                                                         : 'text-slate-400'
-                                                    }`}
+                                                }`}
                                             >
                                                 {cell.dayNumber}
                                             </span>
