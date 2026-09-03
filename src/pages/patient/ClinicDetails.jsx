@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { Heart, CheckCircle2, AlertCircle } from 'lucide-react';
 import PatientNavbar from '../../components/PatientNavbar';
+import { utcToLocalSpecific } from '../../utils/timezone';
 import {
     fetchClinicDetails,
     fetchAvailability,
@@ -330,20 +331,38 @@ function TimeSlotGrid({ clinicId, doctorId, activeDates, selectedAppointment, on
             })
         ).then(results => {
             if (cancelled) return;
-            const map = {};
+            // Collect all slots across all fetched dates
+            const allSlots = [];
             for (const r of results) {
-                map[r.label] = r.slots.map(s => {
+                r.slots.forEach(s => {
                     const rawTime = typeof s === 'string' ? s : (s.time || s.startTime || '');
-                    const timeFormatted = rawTime ? rawTime.substring(0, 5) : '';
-                    return {
-                        time: timeFormatted,
+                    if (!rawTime) return;
+                    
+                    const timeWithSec = rawTime.length === 5 ? rawTime + ":00" : rawTime;
+                    // Convert UTC to Local
+                    const conv = utcToLocalSpecific(r.date, timeWithSec);
+                    
+                    allSlots.push({
+                        time: conv.localTime,
                         rawTime: rawTime,
                         available: typeof s === 'object' ? (s.available !== false) : true,
-                        date: r.date,
+                        date: conv.localDate, // LOCAL date
+                        originalUtcDate: r.date,
                         scheduleId: s.scheduleId || s.id
-                    };
+                    });
                 });
             }
+            
+            // Group back into days based on activeDates
+            const map = {};
+            activeDates.forEach(date => {
+                const dateStr = formatDateForApi(date);
+                const label = formatDateLabel(date);
+                
+                // Find all slots that resolved to this local date
+                map[label] = allSlots.filter(s => s.date === dateStr).sort((a, b) => a.time.localeCompare(b.time));
+            });
+            
             setSlotsByDate(map);
             setLoadingSlots(false);
         });
@@ -361,8 +380,8 @@ function TimeSlotGrid({ clinicId, doctorId, activeDates, selectedAppointment, on
                 doctorId: resolvedDocId,
                 day,
                 time,
-                date: slot?.date,
-                scheduleId: slot?.scheduleId
+                date: slot?.originalUtcDate || slot?.date,
+                rawTime: slot?.rawTime
             });
         }
     };

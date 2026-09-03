@@ -8,7 +8,7 @@ import {
     deleteDoctor,
     fetchDoctorSchedule,
     saveDoctorSchedule,
-    deleteDoctorSchedule,
+    deleteDoctorScheduleDate,
 } from "../../../api/clinicDoctorsApi";
 import { fetchClinicHours } from "../../../api/clinicProfileApi";
 import ModernAlertModal from "../../../components/ModernAlertModal";
@@ -186,7 +186,8 @@ export default function ClinicDoctors() {
                 if (di !== dayIndex) return day;
 
                 // Get default bounds based on clinic hours
-                const dateObj = new Date(day.isoDate);
+                const [year, month, dayNum] = day.isoDate.split('-');
+                const dateObj = new Date(year, month - 1, dayNum);
                 const javaDays = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
                 const dayOfWeekStr = javaDays[dateObj.getDay()];
                 const clinicDay = clinicHours.find(h => h.dayOfWeek === dayOfWeekStr);
@@ -228,7 +229,7 @@ export default function ClinicDoctors() {
                 } else {
                     // Delete the schedule for this day if it's marked inactive
                     // Catch errors in case it doesn't exist on the backend yet
-                    return deleteDoctorSchedule(scheduleModal.doctorId, specificDateStr).catch(() => { });
+                    return deleteDoctorScheduleDate(scheduleModal.doctorId, specificDateStr, day.startTime, day.endTime).catch(() => { });
                 }
             });
 
@@ -363,7 +364,7 @@ function DoctorCard({ doctor, isMenuOpen, onToggleMenu, onEdit, onManageHours, o
         <div className={`relative bg-white rounded-2xl border p-5 transition-all duration-300 group ${doctor.isActive
             ? "border-gray-200/80 hover:shadow-lg hover:shadow-gray-200/60"
             : "border-gray-200/60 bg-gray-50/40 hover:shadow-md"
-        }`}>
+            }`}>
             {/* Top row: avatar + name + menu */}
             <div className="flex items-start gap-3">
                 <DoctorAvatar doctor={doctor} />
@@ -470,14 +471,14 @@ function StatusBadge({ isActive }) {
             className={`
                 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wide transition-all duration-200
                 ${isActive
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                : "bg-gray-100 text-gray-500 border border-gray-300"
-            }
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-gray-100 text-gray-500 border border-gray-300"
+                }
             `}
         >
             <span
                 className={`w-2 h-2 rounded-full transition-colors duration-200 ${isActive ? "bg-emerald-500 shadow-sm shadow-emerald-500/50" : "bg-gray-400"
-                }`}
+                    }`}
             />
             {isActive ? "Active" : "Inactive"}
         </span>
@@ -492,9 +493,9 @@ function DropdownItem({ icon, label, onClick, danger = false }) {
             className={`
                 w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium transition-colors cursor-pointer
                 ${danger
-                ? "text-red-600 hover:bg-red-50"
-                : "text-gray-700 hover:bg-gray-50"
-            }
+                    ? "text-red-600 hover:bg-red-50"
+                    : "text-gray-700 hover:bg-gray-50"
+                }
             `}
         >
             {icon}
@@ -589,7 +590,7 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
                                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isSelected
                                             ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
                                             : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                                        } flex items-center gap-1.5 cursor-pointer`}
+                                            } flex items-center gap-1.5 cursor-pointer`}
                                     >
                                         <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
                                             {isSelected && (
@@ -704,7 +705,8 @@ function ScheduleModal({ doctorName, schedule, clinicHours, onDayToggle, onTimeC
 
                 <div className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar">
                     {schedule.map((day, dayIndex) => {
-                        const dateObj = new Date(day.isoDate);
+                        const [year, month, dayNum] = day.isoDate.split('-');
+                        const dateObj = new Date(year, month - 1, dayNum);
                         const javaDays = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
                         const dayOfWeekStr = javaDays[dateObj.getDay()];
                         const clinicDay = clinicHours.find(h => h.dayOfWeek === dayOfWeekStr);

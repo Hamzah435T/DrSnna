@@ -30,6 +30,7 @@ import {
     Plus,
     Calendar as CalendarIcon
 } from 'lucide-react';
+import { utcToLocalRecurring, utcToLocalSpecific } from '../../utils/timezone';
 
 export default function UserProfile() {
     const navigate = useNavigate();
@@ -572,7 +573,7 @@ export default function UserProfile() {
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-base font-bold text-slate-900">Appointment History</h2>
 
-                                <p value="Past">Past Appointments list</p>
+                            <p value="Past">Past Appointments list</p>
 
 
                         </div>
@@ -605,13 +606,12 @@ export default function UserProfile() {
                                             </div>
 
                                             {/* Status Badge: Defaults to FINISHED unless explicitly CANCELLED */}
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
-                                                isCancelled
-                                                    ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                                                    : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                                            }`}>
-                {statusLabel}
-            </span>
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${isCancelled
+                                                ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                                                : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                                }`}>
+                                                {statusLabel}
+                                            </span>
                                         </div>
                                     );
                                 })}
@@ -749,7 +749,7 @@ export default function UserProfile() {
                         <section className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-base font-bold text-slate-900">Appointment History</h2>
-                           <p value="Past">Past Appointments list</p>
+                                <p value="Past">Past Appointments list</p>
 
 
                             </div>
@@ -783,13 +783,12 @@ export default function UserProfile() {
                                                     </div>
                                                 </div>
 
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
-                                                    isCancelled
-                                                        ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                                                        : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                                                }`}>
-                {statusLabel}
-            </span>
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${isCancelled
+                                                    ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                                                    : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                                    }`}>
+                                                    {statusLabel}
+                                                </span>
                                             </div>
                                         );
                                     })}
@@ -812,46 +811,68 @@ export default function UserProfile() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-left text-xs">
                                         <thead>
-                                        <tr className="text-slate-400 border-b border-slate-100 font-semibold uppercase tracking-wider text-[10px]">
-                                            <th className="py-3 px-2">ID</th>
-                                            <th className="py-3 px-2">SCHEDULE / SHIFT</th>
-                                            <th className="py-3 px-2">TIME &amp; DATE</th>
-                                            <th className="py-3 px-2">DOCTOR</th>
-                                            <th className="py-3 px-2 text-right">STATUS</th>
-                                        </tr>
+                                            <tr className="text-slate-400 border-b border-slate-100 font-semibold uppercase tracking-wider text-[10px]">
+                                                <th className="py-3 px-2">ID</th>
+                                                <th className="py-3 px-2">SCHEDULE / SHIFT</th>
+                                                <th className="py-3 px-2">TIME &amp; DATE</th>
+                                                <th className="py-3 px-2">DOCTOR</th>
+                                                <th className="py-3 px-2 text-right">STATUS</th>
+                                            </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-50">
-                                        {doctorSchedules.map((row) => (
-                                            <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
-                                                <td className="py-3.5 px-2 font-semibold text-slate-400">
-                                                    #{row.id}
-                                                </td>
-                                                <td className="py-3.5 px-2">
-                                                        <span className="font-bold text-slate-900 block leading-tight">
-                                                            {row.type === 'DOCTOR_SHIFT' ? 'Doctor Shift Consultation' : row.type}
-                                                        </span>
-                                                </td>
-                                                <td className="py-3.5 px-2 text-slate-600 whitespace-nowrap">
-                                                    {row.specificDate || row.dayOfWeek || 'Recurring'}
-                                                    <span className="block text-[10px] text-slate-400">{row.startTime} - {row.endTime}</span>
-                                                </td>
-                                                <td className="py-3.5 px-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-6 h-6 rounded-full bg-amber-500 text-white font-bold text-[9px] flex items-center justify-center shrink-0">
-                                                            {userInitials}
-                                                        </div>
-                                                        <span className="font-medium text-slate-800 text-[11px] truncate max-w-[100px]">
-                                                                {userData.fullName.split(' ')[0]}
+                                            {doctorSchedules.map((row) => {
+                                                // Convert UTC schedule to Local Time
+                                                let localDateStr = row.specificDate;
+                                                let localDayStr = row.dayOfWeek;
+                                                let localStart = row.startTime ? row.startTime.substring(0, 5) : "";
+                                                let localEnd = row.endTime ? row.endTime.substring(0, 5) : "";
+
+                                                if (row.specificDate) {
+                                                    const start = utcToLocalSpecific(row.specificDate, localStart || "00:00");
+                                                    const end = utcToLocalSpecific(row.specificDate, localEnd || "00:00");
+                                                    localDateStr = start.localDate;
+                                                    localStart = row.startTime ? start.localTime : "";
+                                                    localEnd = row.endTime ? end.localTime : "";
+                                                } else if (row.dayOfWeek) {
+                                                    const start = utcToLocalRecurring(row.dayOfWeek, localStart || "00:00");
+                                                    const end = utcToLocalRecurring(row.dayOfWeek, localEnd || "00:00");
+                                                    localDayStr = start.localDayOfWeek;
+                                                    localStart = row.startTime ? start.localTime : "";
+                                                    localEnd = row.endTime ? end.localTime : "";
+                                                }
+
+                                                return (
+                                                    <tr key={row.id} className="hover:bg-slate-50/50 transition-colors">
+                                                        <td className="py-3.5 px-2 font-semibold text-slate-400">
+                                                            #{row.id}
+                                                        </td>
+                                                        <td className="py-3.5 px-2">
+                                                            <span className="font-bold text-slate-900 block leading-tight">
+                                                                {row.type === 'DOCTOR_SHIFT' ? 'Doctor Shift Consultation' : row.type}
                                                             </span>
-                                                    </div>
-                                                </td>
-                                                <td className="py-3.5 px-2 text-right">
-                                                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                                                            Approved
-                                                        </span>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                                        </td>
+                                                        <td className="py-3.5 px-2 text-slate-600 whitespace-nowrap">
+                                                            {localDateStr || localDayStr || 'Recurring'}
+                                                            <span className="block text-[10px] text-slate-400">{localStart} - {localEnd}</span>
+                                                        </td>
+                                                        <td className="py-3.5 px-2">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-full bg-amber-500 text-white font-bold text-[9px] flex items-center justify-center shrink-0">
+                                                                    {userInitials}
+                                                                </div>
+                                                                <span className="font-medium text-slate-800 text-[11px] truncate max-w-[100px]">
+                                                                    {userData.fullName.split(' ')[0]}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="py-3.5 px-2 text-right">
+                                                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                                                Approved
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
@@ -868,11 +889,10 @@ export default function UserProfile() {
                                     <button
                                         key={tab}
                                         onClick={() => setCalendarTab(tab)}
-                                        className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                                            calendarTab === tab
-                                                ? 'bg-white text-blue-600 shadow-xs'
-                                                : 'text-slate-500 hover:text-slate-900'
-                                        }`}
+                                        className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${calendarTab === tab
+                                            ? 'bg-white text-blue-600 shadow-xs'
+                                            : 'text-slate-500 hover:text-slate-900'
+                                            }`}
                                     >
                                         {tab}
                                     </button>
@@ -924,27 +944,27 @@ export default function UserProfile() {
                                 {calendarDays.map((cell, idx) => {
                                     const hasShift = doctorSchedules.some(s => s.specificDate === cell.dateStr);
                                     const hasAppointments = doctorAppointments.filter(a => a.appointmentAt?.startsWith(cell.dateStr));
-                                    const isToday = new Date().toISOString().split('T')[0] === cell.dateStr;
+                                    const todayObj = new Date();
+                                    const localIsoDate = new Date(todayObj.getTime() - (todayObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+                                    const isToday = localIsoDate === cell.dateStr;
 
                                     return (
                                         <div
                                             key={idx}
-                                            className={`min-h-[75px] rounded-2xl p-1.5 flex flex-col justify-between border transition-all ${
-                                                cell.isCurrentMonth
-                                                    ? isToday
-                                                        ? 'bg-blue-50/50 border-blue-200'
-                                                        : 'bg-white border-slate-100 hover:border-slate-200'
-                                                    : 'bg-slate-50/40 border-transparent opacity-40'
-                                            }`}
+                                            className={`min-h-[75px] rounded-2xl p-1.5 flex flex-col justify-between border transition-all ${cell.isCurrentMonth
+                                                ? isToday
+                                                    ? 'bg-blue-50/50 border-blue-200'
+                                                    : 'bg-white border-slate-100 hover:border-slate-200'
+                                                : 'bg-slate-50/40 border-transparent opacity-40'
+                                                }`}
                                         >
                                             <span
-                                                className={`text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full ${
-                                                    isToday
-                                                        ? 'bg-blue-600 text-white shadow-xs'
-                                                        : cell.isCurrentMonth
-                                                            ? (idx % 7 === 5 || idx % 7 === 6) ? 'text-rose-500' : 'text-slate-800'
-                                                            : 'text-slate-400'
-                                                }`}
+                                                className={`text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday
+                                                    ? 'bg-blue-600 text-white shadow-xs'
+                                                    : cell.isCurrentMonth
+                                                        ? (idx % 7 === 5 || idx % 7 === 6) ? 'text-rose-500' : 'text-slate-800'
+                                                        : 'text-slate-400'
+                                                    }`}
                                             >
                                                 {cell.dayNumber}
                                             </span>

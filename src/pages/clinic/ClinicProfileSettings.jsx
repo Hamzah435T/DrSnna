@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Link, Form } from "react-router";
 import * as api from "../../api/clinicProfileApi";
 
+import { localToUtcRecurring, utcToLocalRecurring } from "../../utils/timezone";
+
 // Map between backend City enum and display names
 const CITY_OPTIONS = [
     { value: "AMMAN", label: "Amman" },
@@ -242,11 +244,11 @@ function Toggle({ enabled, onChange }) {
             onClick={onChange}
             aria-pressed={enabled}
             className={`relative h-[18px] w-[34px] rounded-full transition ${enabled ? "bg-blue-700" : "bg-slate-200"
-            }`}
+                }`}
         >
             <span
                 className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition ${enabled ? "left-[18px]" : "left-[2px]"
-                }`}
+                    }`}
             />
         </button>
     );
@@ -575,12 +577,16 @@ export default function ClinicProfileSettings() {
             };
             const hours = { ...initialForm.hours }; // start with all disabled
             hoursData.forEach(schedule => {
-                const dayName = javaDayToJsDay[schedule.dayOfWeek];
+                if (!schedule.startTime || !schedule.endTime) return;
+                const startConv = utcToLocalRecurring(schedule.dayOfWeek, schedule.startTime);
+                const endConv = utcToLocalRecurring(schedule.dayOfWeek, schedule.endTime);
+                
+                const dayName = javaDayToJsDay[startConv.localDayOfWeek];
                 if (dayName) {
                     hours[dayName] = {
                         enabled: true,
-                        from: schedule.startTime ? schedule.startTime.substring(0, 5) : "09:00",
-                        to: schedule.endTime ? schedule.endTime.substring(0, 5) : "17:00",
+                        from: startConv.localTime,
+                        to: endConv.localTime,
                     };
                 }
             });
@@ -645,6 +651,10 @@ export default function ClinicProfileSettings() {
             // 3. Save Hours
             const jsDayToJavaDay = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
 
+            // First, delete all 7 days to clear old schedules and avoid shifting orphan bugs
+            const allJavaDays = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+            await Promise.all(allJavaDays.map(day => api.deleteClinicHours(day).catch(() => { })));
+
             const hoursPromises = Object.entries(form.hours).map(async ([day, schedule]) => {
                 const dayIndex = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].indexOf(day);
                 const javaDay = jsDayToJavaDay[dayIndex];
@@ -652,9 +662,11 @@ export default function ClinicProfileSettings() {
                 if (schedule.enabled) {
                     const startTime = schedule.from.length === 5 ? schedule.from + ":00" : schedule.from;
                     const endTime = schedule.to.length === 5 ? schedule.to + ":00" : schedule.to;
-                    return api.saveClinicHours(javaDay, startTime, endTime).catch(() => { });
-                } else {
-                    return api.deleteClinicHours(javaDay).catch(() => { });
+                    
+                    const startConv = localToUtcRecurring(javaDay, startTime);
+                    const endConv = localToUtcRecurring(javaDay, endTime);
+                    
+                    return api.saveClinicHours(startConv.utcDayOfWeek, startConv.utcTime, endConv.utcTime).catch(() => { });
                 }
             });
 
@@ -931,7 +943,7 @@ export default function ClinicProfileSettings() {
                                     className={`flex min-h-[54px] items-center justify-between ${index !== Object.entries(form.hours).length - 1
                                         ? "border-b border-slate-200"
                                         : ""
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-center gap-6">
                                         <Toggle
@@ -945,7 +957,7 @@ export default function ClinicProfileSettings() {
                                             className={`w-[80px] text-[15px] font-medium ${schedule.enabled
                                                 ? "text-slate-950"
                                                 : "text-slate-400"
-                                            }`}
+                                                }`}
                                         >
                                             {day}
                                         </span>

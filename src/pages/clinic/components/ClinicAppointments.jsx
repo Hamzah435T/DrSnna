@@ -20,7 +20,9 @@ export default function ClinicAppointments() {
     };
 
     const [currentWeekStart, setCurrentWeekStart] = useState(() => {
-        const d = new Date(2026, 7, 23); // Force August 2026, starting Sunday
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - d.getDay());
         return d;
     });
 

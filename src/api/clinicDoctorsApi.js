@@ -11,6 +11,7 @@
 const BASE_URL = "http://localhost:8080/api/clinic";
 
 import { getToken } from "../auth/authStorage";
+import { localToUtcSpecific, utcToLocalSpecific } from "../utils/timezone";
 
 function authHeaders() {
     return {
@@ -130,9 +131,17 @@ export async function fetchDoctorSchedule(doctorId) {
         return `${dayNames[d.getDay()]}, ${monthNames[d.getMonth()]} ${d.getDate()}`;
     }
 
-    const javaDayOfWeekToJs = {
-        SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6
-    };
+    // Convert all backend UTC schedules to Local Time
+    const localSavedSchedules = savedSchedules.map(s => {
+        if (!s.startTime || !s.endTime) return null;
+        const start = utcToLocalSpecific(s.specificDate, s.startTime);
+        const end = utcToLocalSpecific(s.specificDate, s.endTime);
+        return {
+            localDate: start.localDate,
+            startTime: start.localTime,
+            endTime: end.localTime
+        };
+    }).filter(Boolean);
 
     return Array.from({ length: 7 }, (_, i) => {
         const d = new Date(today);
@@ -142,41 +151,53 @@ export async function fetchDoctorSchedule(doctorId) {
         const dayNum = String(d.getDate()).padStart(2, '0');
         const isoDate = `${year}-${month}-${dayNum}`;
 
-        // Find if backend has a schedule for this specific date
-        const backendDay = savedSchedules.find(s => s.specificDate === isoDate);
+        // Find if we have a mapped local schedule for this specific date
+        const backendDay = localSavedSchedules.find(s => s.localDate === isoDate);
 
         return {
             dayLabel: labelForOffset(i),
             isoDate: isoDate, // Keep this for saving later
             isActive: !!backendDay,
-            startTime: backendDay?.startTime ? backendDay.startTime.substring(0, 5) : "",
-            endTime: backendDay?.endTime ? backendDay.endTime.substring(0, 5) : "",
+            startTime: backendDay ? backendDay.startTime : "",
+            endTime: backendDay ? backendDay.endTime : "",
         };
     });
 }
 
 export async function saveDoctorSchedule(doctorId, specificDateStr, startTime, endTime) {
+    const startTimeFull = startTime.length === 5 ? startTime + ":00" : startTime;
+    const endTimeFull = endTime.length === 5 ? endTime + ":00" : endTime;
+
+    const startConv = localToUtcSpecific(specificDateStr, startTimeFull);
+    const endConv = localToUtcSpecific(specificDateStr, endTimeFull);
+
     const res = await fetch(`${BASE_URL}/schedules/doctor-schedule`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
             doctorId,
-            specificDate: specificDateStr, // e.g. "2026-09-01"
-            startTime, // e.g. "09:00:00"
-            endTime,
-        }),
+            type: "DOCTOR_SHIFT",
+            specificDate: startConv.utcDate,
+            startTime: startConv.utcTime,
+            endTime: endConv.utcTime
+        })
     });
     if (!res.ok) throw new Error("Failed to save schedule");
     return res.json();
 }
 
 /** Delete a specific day's shift schedule. */
-export async function deleteDoctorSchedule(doctorId, specificDateStr) {
-    const res = await fetch(`${BASE_URL}/schedules/doctor-schedule?doctorId=${doctorId}&specificDate=${specificDateStr}`, {
+export async function deleteDoctorScheduleDate(doctorId, specificDateStr, startTime, endTime) {
+    // We need to delete the specific UTC date that this local date mapped to!
+    const startTimeFull = (startTime || "09:00").length === 5 ? (startTime || "09:00") + ":00" : (startTime || "09:00");
+    const startConv = localToUtcSpecific(specificDateStr, startTimeFull);
+
+    const res = await fetch(`${BASE_URL}/schedules/doctor-schedule/${doctorId}/date/${startConv.utcDate}`, {
         method: "DELETE",
-        headers: authHeaders(),
+        headers: authHeaders()
     });
     if (!res.ok) throw new Error("Failed to delete schedule");
+    return res.text();
 }
 
 /** Delete a doctor from the clinic. */
