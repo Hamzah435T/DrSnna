@@ -1,3 +1,4 @@
+// src/pages/clinic/ClinicProfileSettings.jsx
 import { useState, useRef, useEffect } from "react";
 import { Link, Form } from "react-router";
 import * as api from "../../api/clinicProfileApi";
@@ -35,7 +36,7 @@ const initialForm = {
     checkingFee: "0.00",
     description: "",
     phoneNumber: "",
-    instagram: "",
+    socialLinks: [""],
     city: "AMMAN",
     address: "",
     specialties: {},
@@ -88,6 +89,15 @@ function Icon({ children, size = 20, className = "" }) {
     );
 }
 
+function LinkIcon({ size = 18 }) {
+    return (
+        <Icon size={size}>
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </Icon>
+    );
+}
+
 function StoreIcon({ size = 21 }) {
     return (
         <Icon size={size}>
@@ -134,68 +144,9 @@ function ClockIcon({ size = 21 }) {
     );
 }
 
-function DashboardIcon() {
+function PlusIcon({ size = 17 }) {
     return (
-        <Icon size={18}>
-            <rect x="4" y="4" width="6" height="6" rx="1" />
-            <rect x="14" y="4" width="6" height="6" rx="1" />
-            <rect x="4" y="14" width="6" height="6" rx="1" />
-            <rect x="14" y="14" width="6" height="6" rx="1" />
-        </Icon>
-    );
-}
-
-function BriefcaseIcon() {
-    return (
-        <Icon size={18}>
-            <rect x="3" y="7" width="18" height="13" rx="2" />
-            <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            <path d="M3 12h18M10 12v2h4v-2" />
-        </Icon>
-    );
-}
-
-function CalendarIcon() {
-    return (
-        <Icon size={18}>
-            <rect x="3" y="4" width="18" height="17" rx="2" />
-            <path d="M16 2v4M8 2v4M3 9h18" />
-        </Icon>
-    );
-}
-
-function SettingsIcon() {
-    return (
-        <Icon size={18}>
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.41 1.41-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V20h-2v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06-1.41-1.41.06-.06A1.7 1.7 0 0 0 9.4 15a1.7 1.7 0 0 0-1.55-1H7v-2h.85a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88L9 9.06l1.41-1.41.06.06a1.7 1.7 0 0 0 1.88.34 1.7 1.7 0 0 0 1-1.55V6h2v.5a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.7 9.06l-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.55 1H21v2h-.15a1.7 1.7 0 0 0-1.45 1Z" />
-        </Icon>
-    );
-}
-
-function HelpIcon() {
-    return (
-        <Icon size={18}>
-            <circle cx="12" cy="12" r="9" />
-            <path d="M9.5 9a2.5 2.5 0 1 1 4.3 1.75c-.9.9-1.8 1.25-1.8 2.75" />
-            <path d="M12 17h.01" />
-        </Icon>
-    );
-}
-
-function LogoutIcon() {
-    return (
-        <Icon size={18}>
-            <path d="M10 17l5-5-5-5" />
-            <path d="M15 12H3" />
-            <path d="M21 19V5a2 2 0 0 0-2-2h-7" />
-        </Icon>
-    );
-}
-
-function PlusIcon() {
-    return (
-        <Icon size={17}>
+        <Icon size={size}>
             <path d="M12 5v14M5 12h14" />
         </Icon>
     );
@@ -210,7 +161,6 @@ function Section({ icon, title, children }) {
                     {title}
                 </h2>
             </div>
-
             {children}
         </section>
     );
@@ -243,12 +193,10 @@ function Toggle({ enabled, onChange }) {
             type="button"
             onClick={onChange}
             aria-pressed={enabled}
-            className={`relative h-[18px] w-[34px] rounded-full transition ${enabled ? "bg-blue-700" : "bg-slate-200"
-                }`}
+            className={`relative h-[18px] w-[34px] rounded-full transition ${enabled ? "bg-blue-700" : "bg-slate-200"}`}
         >
             <span
-                className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition ${enabled ? "left-[18px]" : "left-[2px]"
-                    }`}
+                className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition ${enabled ? "left-[18px]" : "left-[2px]"}`}
             />
         </button>
     );
@@ -417,15 +365,12 @@ function TimeSelect({ value, onChange }) {
                         .hide-scroll::-webkit-scrollbar { display: none; }
                         .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
                     `}</style>
-                    {/* Arrow */}
                     <div className="absolute -bottom-[6px] left-1/2 -translate-x-1/2 h-3 w-3 rotate-45 border-r border-b border-slate-200 bg-white z-10" />
 
                     <div className="relative flex h-[180px] w-[130px] flex-col items-center justify-center rounded-2xl bg-white shadow-[0_4px_24px_rgba(0,0,0,0.12)] ring-1 ring-slate-200 overflow-hidden">
-                        {/* Background Highlight Pill */}
                         <div className="absolute top-1/2 left-2 right-2 h-[34px] -translate-y-1/2 rounded-lg bg-slate-100 pointer-events-none" />
 
                         <div className="relative z-10 flex h-[150px] w-full px-1 items-center">
-                            {/* Hours */}
                             <PickerColumn
                                 items={hours}
                                 value={currentHour12Str}
@@ -433,7 +378,6 @@ function TimeSelect({ value, onChange }) {
                                 className="text-[18px]"
                             />
 
-                            {/* AM/PM */}
                             <PickerColumn
                                 items={ampmOptions}
                                 value={currentAmPm}
@@ -447,7 +391,6 @@ function TimeSelect({ value, onChange }) {
         </div>
     );
 }
-
 
 export default function ClinicProfileSettings() {
     const [form, setForm] = useState(initialForm);
@@ -464,7 +407,6 @@ export default function ClinicProfileSettings() {
         if (!newName) return;
 
         try {
-            // fix specialty not showing when switching tab
             await api.addSpecialty(newName);
 
             setForm((current) => ({
@@ -502,7 +444,7 @@ export default function ClinicProfileSettings() {
                     return newSpecialties;
                 });
                 setDeletingSpecialty(null);
-            }, 500); // Wait for animation to finish
+            }, 500);
         } catch (err) {
             setError(err.message);
             setDeletingSpecialty(null);
@@ -514,7 +456,35 @@ export default function ClinicProfileSettings() {
             ...current,
             [field]: value,
         }));
+        setSaved(false);
+    }
 
+    // Dynamic Social Links Array Handlers
+    function handleSocialLinkChange(index, value) {
+        setForm(current => {
+            const updated = [...current.socialLinks];
+            updated[index] = value;
+            return { ...current, socialLinks: updated };
+        });
+        setSaved(false);
+    }
+
+    function handleAddSocialLink() {
+        setForm(current => ({
+            ...current,
+            socialLinks: [...current.socialLinks, ""],
+        }));
+        setSaved(false);
+    }
+
+    function handleRemoveSocialLink(index) {
+        setForm(current => {
+            const updated = current.socialLinks.filter((_, i) => i !== index);
+            return {
+                ...current,
+                socialLinks: updated.length > 0 ? updated : [""],
+            };
+        });
         setSaved(false);
     }
 
@@ -526,7 +496,6 @@ export default function ClinicProfileSettings() {
                 [name]: !current.specialties[name],
             },
         }));
-
         setSaved(false);
     }
 
@@ -541,7 +510,6 @@ export default function ClinicProfileSettings() {
                 },
             },
         }));
-
         setSaved(false);
     }
 
@@ -553,14 +521,12 @@ export default function ClinicProfileSettings() {
         try {
             setLoading(true);
 
-            // Fetch profile, specialties, and clinic hours in parallel
             const [profile, specialtiesData, hoursData] = await Promise.all([
                 api.fetchClinicProfile(),
                 api.fetchSpecialties(),
                 api.fetchClinicHours(),
             ]);
 
-            // Build specialties map: { "General Dentistry": true, "Orthodontics": true, ... }
             const specialtiesMap = {};
             STATIC_SPECIALTIES.forEach(s => {
                 specialtiesMap[s] = false;
@@ -570,17 +536,16 @@ export default function ClinicProfileSettings() {
             });
             setOriginalSpecialties({ ...specialtiesMap });
 
-            // Build hours map from backend schedules
             const javaDayToJsDay = {
                 SUNDAY: "Sunday", MONDAY: "Monday", TUESDAY: "Tuesday",
                 WEDNESDAY: "Wednesday", THURSDAY: "Thursday", FRIDAY: "Friday", SATURDAY: "Saturday"
             };
-            const hours = { ...initialForm.hours }; // start with all disabled
+            const hours = { ...initialForm.hours };
             hoursData.forEach(schedule => {
                 if (!schedule.startTime || !schedule.endTime) return;
                 const startConv = utcToLocalRecurring(schedule.dayOfWeek, schedule.startTime);
                 const endConv = utcToLocalRecurring(schedule.dayOfWeek, schedule.endTime);
-                
+
                 const dayName = javaDayToJsDay[startConv.localDayOfWeek];
                 if (dayName) {
                     hours[dayName] = {
@@ -591,13 +556,23 @@ export default function ClinicProfileSettings() {
                 }
             });
 
+            // Normalize backend socialLinks array
+            let loadedSocialLinks = [];
+            if (Array.isArray(profile.socialLinks) && profile.socialLinks.length > 0) {
+                loadedSocialLinks = profile.socialLinks;
+            } else if (typeof profile.socialLinks === "string" && profile.socialLinks.trim()) {
+                loadedSocialLinks = [profile.socialLinks.trim()];
+            } else {
+                loadedSocialLinks = [""];
+            }
+
             setForm(current => ({
                 ...current,
                 clinicName: profile.clinicName || "",
                 checkingFee: profile.checkingFee?.toString() || "0.00",
                 description: profile.description || "",
                 phoneNumber: profile.phoneNumber || "",
-                instagram: profile.socialLinks || "",
+                socialLinks: loadedSocialLinks,
                 city: profile.city || "AMMAN",
                 address: profile.detailedAddress || "",
                 specialties: specialtiesMap,
@@ -624,13 +599,18 @@ export default function ClinicProfileSettings() {
         setError("");
 
         try {
+            // Trim and filter empty link fields to send a clean List<String>
+            const cleanedSocialLinks = form.socialLinks
+                .map(link => link.trim())
+                .filter(Boolean);
+
             // 1. Save Profile
             await api.updateClinicProfile({
                 clinicName: form.clinicName,
                 phoneNumber: form.phoneNumber,
-                socialLinks: form.instagram,
+                socialLinks: cleanedSocialLinks,
                 detailedAddress: form.address,
-                workingHours: null, // Keep null as we use detailed hours
+                workingHours: null,
                 checkingFee: parseFloat(form.checkingFee),
                 description: form.description,
                 city: form.city
@@ -650,8 +630,6 @@ export default function ClinicProfileSettings() {
 
             // 3. Save Hours
             const jsDayToJavaDay = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
-
-            // First, delete all 7 days to clear old schedules and avoid shifting orphan bugs
             const allJavaDays = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
             await Promise.all(allJavaDays.map(day => api.deleteClinicHours(day).catch(() => { })));
 
@@ -662,10 +640,10 @@ export default function ClinicProfileSettings() {
                 if (schedule.enabled) {
                     const startTime = schedule.from.length === 5 ? schedule.from + ":00" : schedule.from;
                     const endTime = schedule.to.length === 5 ? schedule.to + ":00" : schedule.to;
-                    
+
                     const startConv = localToUtcRecurring(javaDay, startTime);
                     const endConv = localToUtcRecurring(javaDay, endTime);
-                    
+
                     return api.saveClinicHours(startConv.utcDayOfWeek, startConv.utcTime, endConv.utcTime).catch(() => { });
                 }
             });
@@ -681,7 +659,6 @@ export default function ClinicProfileSettings() {
             setSaving(false);
         }
     }
-
 
     if (loading) {
         return (
@@ -700,10 +677,8 @@ export default function ClinicProfileSettings() {
                         <h1 className="text-[28px] font-medium leading-8 tracking-[-0.025em] text-slate-950">
                             Clinic Profile Settings
                         </h1>
-
                         <p className="mt-2 text-[14px] text-slate-600">
-                            Manage your clinic&apos;s public information and contact
-                            details.
+                            Manage your clinic&apos;s public information and contact details.
                         </p>
                     </div>
 
@@ -712,7 +687,7 @@ export default function ClinicProfileSettings() {
                             type="button"
                             onClick={handleSave}
                             disabled={saving}
-                            className={`flex h-[36px] items-center justify-center gap-2 rounded-md bg-blue-700 px-5 text-[13px] font-medium text-white shadow-sm transition hover:bg-blue-800 ${saving ? "opacity-70" : ""}`}
+                            className={`flex h-[36px] items-center justify-center gap-2 rounded-md bg-blue-700 px-5 text-[13px] font-medium text-white shadow-sm transition hover:bg-blue-800 cursor-pointer ${saving ? "opacity-70" : ""}`}
                         >
                             <StoreIcon size={16} />
                             {saving ? "Saving..." : "Save Settings"}
@@ -737,12 +712,9 @@ export default function ClinicProfileSettings() {
                     )}
 
                     {/* GENERAL INFORMATION */}
-                    <Section
-                        icon={<StoreIcon />}
-                        title="General Information"
-                    >
+                    <Section icon={<StoreIcon />} title="General Information">
                         <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-                            <Field label="Clinic Name " required>
+                            <Field label="Clinic Name" required>
                                 <Input
                                     value={form.clinicName}
                                     onChange={(e) =>
@@ -754,7 +726,7 @@ export default function ClinicProfileSettings() {
                             <Field label="Checking Fee">
                                 <div className="flex">
                                     <div className="flex h-[40px] w-[40px] items-center justify-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 text-[15px] font-medium text-slate-600">
-                                        $
+                                        JOD
                                     </div>
                                     <Input
                                         value={form.checkingFee}
@@ -779,7 +751,6 @@ export default function ClinicProfileSettings() {
                                     placeholder="Briefly describe your clinic's mission, specialties, and atmosphere..."
                                     className="h-[100px] w-full resize-none rounded-md border border-slate-300 bg-white px-3 py-3 text-[15px] text-slate-800 outline-none placeholder:text-slate-700 focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
                                 />
-
                                 <div className="mt-1 text-right text-[12px] text-slate-500">
                                     {form.description.length} / 500 characters
                                 </div>
@@ -788,17 +759,13 @@ export default function ClinicProfileSettings() {
                     </Section>
 
                     {/* CONTACT & SOCIAL */}
-                    <Section
-                        icon={<PhoneIcon />}
-                        title="Contact & Social"
-                    >
+                    <Section icon={<PhoneIcon />} title="Contact & Social">
                         <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                             <Field label="Phone Number">
                                 <div className="flex">
                                     <div className="flex h-[40px] w-[40px] items-center justify-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 text-slate-600">
                                         <PhoneIcon size={13} />
                                     </div>
-
                                     <Input
                                         value={form.phoneNumber}
                                         onChange={(e) => {
@@ -809,30 +776,62 @@ export default function ClinicProfileSettings() {
                                     />
                                 </div>
                             </Field>
+                        </div>
 
-                            <Field label="Instagram">
-                                <div className="flex">
-                                    <div className="flex h-[40px] w-[40px] items-center justify-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 text-[16px] text-slate-700">
-                                        @
-                                    </div>
-
-                                    <Input
-                                        value={form.instagram}
-                                        onChange={(e) =>
-                                            updateField("instagram", e.target.value)
-                                        }
-                                        className="rounded-l-none"
-                                    />
+                        {/* Multiple Social Links Dynamic Inputs */}
+                        <div className="mt-6 pt-5 border-t border-slate-200">
+                            <div className="mb-3 flex items-center justify-between">
+                                <div>
+                                    <span className="block text-[13px] font-medium tracking-wide text-slate-700">
+                                        Social Media &amp; Public Links
+                                    </span>
+                                    <span className="text-[12px] text-slate-500">
+                                        Add links to your Instagram, Facebook, LinkedIn, website, or other profiles.
+                                    </span>
                                 </div>
-                            </Field>
+                                <button
+                                    type="button"
+                                    onClick={handleAddSocialLink}
+                                    className="flex items-center gap-1.5 text-[13px] font-medium text-blue-700 hover:text-blue-800 transition cursor-pointer"
+                                >
+                                    <PlusIcon size={15} />
+                                    <span>Add Link</span>
+                                </button>
+                            </div>
+
+                            <div className="space-y-3">
+                                {form.socialLinks.map((link, index) => (
+                                    <div key={index} className="flex items-center gap-2">
+                                        <div className="flex flex-1">
+                                            <div className="flex h-[40px] w-[40px] items-center justify-center rounded-l-md border border-r-0 border-slate-300 bg-slate-100 text-slate-600">
+                                                <LinkIcon size={16} />
+                                            </div>
+                                            <Input
+                                                value={link}
+                                                onChange={(e) => handleSocialLinkChange(index, e.target.value)}
+                                                placeholder="e.g. instagram.com/clinic or https://facebook.com/clinic"
+                                                className="rounded-l-none"
+                                            />
+                                        </div>
+
+                                        {form.socialLinks.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveSocialLink(index)}
+                                                className="flex h-[40px] w-[40px] items-center justify-center rounded-md border border-slate-300 text-slate-400 hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition cursor-pointer"
+                                                title="Remove link"
+                                            >
+                                                <TrashIcon size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </Section>
 
                     {/* LOCATION */}
-                    <Section
-                        icon={<LocationIcon />}
-                        title="Location Details"
-                    >
+                    <Section icon={<LocationIcon />} title="Location Details">
                         <div className="grid grid-cols-[1fr_1fr] gap-6">
                             <div className="space-y-5">
                                 <Field label="City">
@@ -840,7 +839,7 @@ export default function ClinicProfileSettings() {
                                         <select
                                             value={form.city}
                                             onChange={(e) => updateField("city", e.target.value)}
-                                            className="h-[40px] w-full appearance-none rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+                                            className="h-[40px] w-full appearance-none rounded-md border border-slate-300 bg-white px-3 text-[15px] text-slate-800 outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 cursor-pointer"
                                         >
                                             {CITY_OPTIONS.map(c => (
                                                 <option key={c.value} value={c.value}>{c.label}</option>
@@ -862,7 +861,6 @@ export default function ClinicProfileSettings() {
                                 </Field>
                             </div>
 
-                            {/* MAP PLACEHOLDER */}
                             <div className="flex min-h-[190px] items-center justify-center overflow-hidden rounded-lg border border-slate-300 bg-[#e8edf1]">
                                 <div className="relative h-full w-full">
                                     <div className="absolute inset-0 opacity-50">
@@ -885,10 +883,7 @@ export default function ClinicProfileSettings() {
                     </Section>
 
                     {/* MEDICAL SPECIALTIES */}
-                    <Section
-                        icon={<MedicalIcon />}
-                        title="Medical Specialties"
-                    >
+                    <Section icon={<MedicalIcon />} title="Medical Specialties">
                         <div className="grid grid-cols-4 gap-3">
                             {Object.keys(form.specialties).map((specialty) => {
                                 const isStatic = STATIC_SPECIALTIES.includes(specialty);
@@ -904,7 +899,7 @@ export default function ClinicProfileSettings() {
                                                 type="checkbox"
                                                 checked={form.specialties[specialty]}
                                                 onChange={() => updateSpecialty(specialty)}
-                                                className="h-[18px] w-[18px] accent-blue-700"
+                                                className="h-[18px] w-[18px] accent-blue-700 cursor-pointer"
                                             />
                                             <span className="truncate">{specialty}</span>
                                         </label>
@@ -912,7 +907,7 @@ export default function ClinicProfileSettings() {
                                             <button
                                                 type="button"
                                                 onClick={() => handleDeleteSpecialty(specialty)}
-                                                className="text-red-500 hover:text-red-700 p-1"
+                                                className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
                                                 title="Delete Custom Specialty"
                                             >
                                                 <TrashIcon size={15} />
@@ -924,7 +919,7 @@ export default function ClinicProfileSettings() {
                             <button
                                 type="button"
                                 onClick={() => setSpecialtyModal({ open: true, name: "" })}
-                                className="flex h-[36px] items-center justify-center gap-1.5 rounded-md border border-dashed border-slate-300 text-[13px] font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+                                className="flex h-[36px] items-center justify-center gap-1.5 rounded-md border border-dashed border-slate-300 text-[13px] font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
                             >
                                 <PlusIcon size={14} /> Add Specialty
                             </button>
@@ -932,10 +927,7 @@ export default function ClinicProfileSettings() {
                     </Section>
 
                     {/* CLINIC HOURS */}
-                    <Section
-                        icon={<ClockIcon />}
-                        title="Clinic Hours"
-                    >
+                    <Section icon={<ClockIcon />} title="Clinic Hours">
                         <div>
                             {Object.entries(form.hours).map(([day, schedule], index) => (
                                 <div
@@ -943,7 +935,7 @@ export default function ClinicProfileSettings() {
                                     className={`flex min-h-[54px] items-center justify-between ${index !== Object.entries(form.hours).length - 1
                                         ? "border-b border-slate-200"
                                         : ""
-                                        }`}
+                                    }`}
                                 >
                                     <div className="flex items-center gap-6">
                                         <Toggle
@@ -952,12 +944,11 @@ export default function ClinicProfileSettings() {
                                                 updateHour(day, "enabled", !schedule.enabled)
                                             }
                                         />
-
                                         <span
                                             className={`w-[80px] text-[15px] font-medium ${schedule.enabled
                                                 ? "text-slate-950"
                                                 : "text-slate-400"
-                                                }`}
+                                            }`}
                                         >
                                             {day}
                                         </span>
@@ -969,26 +960,19 @@ export default function ClinicProfileSettings() {
                                                 value={schedule.from}
                                                 onChange={(val) => updateHour(day, "from", val)}
                                             />
-
-                                            <span className="text-[13px] text-slate-600">
-                                                to
-                                            </span>
-
+                                            <span className="text-[13px] text-slate-600">to</span>
                                             <TimeSelect
                                                 value={schedule.to}
                                                 onChange={(val) => updateHour(day, "to", val)}
                                             />
                                         </div>
                                     ) : (
-                                        <span className="mr-1 text-[13px] text-slate-400">
-                                            Closed
-                                        </span>
+                                        <span className="mr-1 text-[13px] text-slate-400">Closed</span>
                                     )}
                                 </div>
                             ))}
                         </div>
                     </Section>
-
                 </form>
             </div>
 
@@ -1000,7 +984,7 @@ export default function ClinicProfileSettings() {
                             <h3 className="text-lg font-medium text-slate-900">Add New Specialty</h3>
                             <button
                                 onClick={() => setSpecialtyModal({ open: false, name: "" })}
-                                className="text-slate-400 hover:text-slate-600"
+                                className="text-slate-400 hover:text-slate-600 cursor-pointer"
                             >
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <line x1="18" y1="6" x2="6" y2="18" />
@@ -1023,13 +1007,13 @@ export default function ClinicProfileSettings() {
                         <div className="flex justify-end gap-3">
                             <button
                                 onClick={() => setSpecialtyModal({ open: false, name: "" })}
-                                className="h-[36px] rounded-md border border-slate-300 bg-white px-4 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50"
+                                className="h-[36px] rounded-md border border-slate-300 bg-white px-4 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50 cursor-pointer"
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleSaveSpecialty}
-                                className="h-[36px] rounded-md bg-blue-700 px-4 text-[13px] font-medium text-white shadow-sm transition hover:bg-blue-800"
+                                className="h-[36px] rounded-md bg-blue-700 px-4 text-[13px] font-medium text-white shadow-sm transition hover:bg-blue-800 cursor-pointer"
                             >
                                 Save Specialty
                             </button>
