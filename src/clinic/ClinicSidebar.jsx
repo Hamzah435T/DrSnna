@@ -1,4 +1,4 @@
-import React from 'react';
+import 'react';
 import { NavLink, useNavigate } from 'react-router';
 import { LayoutDashboard, UserRound, Calendar, Settings, HelpCircle, LogOut, Stethoscope } from 'lucide-react';
 import { clearAuth } from '../auth/authStorage';
