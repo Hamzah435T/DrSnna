@@ -64,11 +64,12 @@ export async function getClinicDetails(clinicId) {
 export const fetchClinicDetails = getClinicDetails;
 
 // ── 2. Slot Availability Endpoint ────────────────────────────────────
-export async function fetchAvailability({ clinicId, date, doctorId } = {}) {
-    if (!clinicId || !date) return [];
+export async function fetchAvailability({ clinicId, date, doctorId, serviceId } = {}) {
+    if (!clinicId || !date || !serviceId) return [];
 
     const params = new URLSearchParams();
     params.append("date", date);
+    params.append("serviceId", serviceId);
     if (doctorId && doctorId !== "undefined" && doctorId.trim() !== "") {
         params.append("doctorId", doctorId);
     }

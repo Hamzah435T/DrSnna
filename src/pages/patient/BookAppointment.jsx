@@ -424,29 +424,15 @@ export default function BookAppointment() {
         }
     };
 
-    if (clinicError && !clinic) {
-        return (
-            <div className="bg-slate-100 min-h-screen flex flex-col font-sans text-slate-700 antialiased">
-                <PatientNavbar />
-                <div className="flex-1 flex items-center justify-center p-6">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-lg text-center border border-slate-200">
-                        <div className="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <AlertCircle className="w-8 h-8" />
-                        </div>
-                        <h2 className="text-xl font-bold text-slate-900 mb-2">Clinic Information Not Available</h2>
-                        <p className="text-sm text-slate-500 mb-6">{clinicError}</p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => navigate('/')}
-                                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all cursor-pointer shadow-sm"
-                            >
-                                Browse Clinics
-                            </button>
-                        </div>
-                    </div>
+
+        if (clinicError && !clinic) {
+            return (
+                <div className="min-h-screen flex items-center justify-center">
+                    <h2>{clinicError}</h2>
                 </div>
-            </div>
-        );
+            );
+
+
     }
 
     if (loadingClinic) {
@@ -785,41 +771,87 @@ export default function BookAppointment() {
                                     </div>
 
                                     {availableSlots.length > 0 ? (
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                            {availableSlots.map((slot, sIdx) => {
-                                                const isSelected = selectedTimeSlot === slot.time || selectedTimeSlot === slot.rawTime;
-                                                const isSlotAvailable = slot.available !== false;
+                                        Object.entries(
+                                            availableSlots.reduce((groups, slot) => {
+                                                const hour = slot.time.split(":")[0];
 
-                                                return (
-                                                    <button
-                                                        key={sIdx}
-                                                        type="button"
-                                                        disabled={!isSlotAvailable}
-                                                        onClick={() => {
-                                                            if (isSlotAvailable) setSelectedTimeSlot(slot.time);
-                                                        }}
-                                                        className={`py-2.5 px-3 rounded-lg text-sm font-semibold text-center transition-all ${
-                                                            !isSlotAvailable
-                                                                ? 'border border-slate-200 bg-slate-100/80 text-slate-400 cursor-not-allowed opacity-60 shadow-none'
-                                                                : isSelected
-                                                                    ? 'border-2 border-blue-600 bg-blue-600 text-white scale-[1.02] shadow-sm cursor-pointer'
-                                                                    : 'border border-blue-200 text-blue-700 bg-blue-50/40 hover:bg-blue-50 hover:border-blue-300 cursor-pointer shadow-2xs'
-                                                        }`}
-                                                    >
-                                                        <span className={!isSlotAvailable ? 'line-through' : ''}>
-                                                            {slot.time}
-                                                        </span>
-                                                        {!isSlotAvailable && (
-                                                            <span className="block text-[10px] text-slate-400 font-normal">
-                                                                Booked
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                                if (!groups[hour]) groups[hour] = [];
+
+                                                groups[hour].push(slot);
+
+                                                return groups;
+                                            }, {})
+                                        ).map(([hour, slots]) => (
+                                            <div key={hour} className="flex gap-6 mb-8">
+
+                                                <div className="w-24 shrink-0">
+
+                                                    <h3 className="font-bold text-slate-700">
+                                                        {hour}:00
+                                                    </h3>
+
+                                                    <p className="text-xs text-slate-500">
+                                                        {slots.length} Slots
+                                                    </p>
+
+                                                </div>
+
+                                                <div className="grid grid-cols-4 gap-3 flex-1">
+
+                                                    {slots.map((slot, index) => {
+
+                                                        const isSelected =
+                                                            selectedTimeSlot === slot.time;
+
+                                                        const isAvailable =
+                                                            slot.available !== false;
+
+                                                        return (
+
+                                                            <button
+                                                                key={index}
+                                                                disabled={!isAvailable}
+                                                                onClick={() =>
+                                                                    isAvailable &&
+                                                                    setSelectedTimeSlot(slot.time)
+                                                                }
+                                                                className={`rounded-xl p-4 border transition
+
+                            ${
+                                                                    isSelected
+                                                                        ? "bg-blue-600 text-white border-blue-600"
+                                                                        : isAvailable
+                                                                            ? "bg-white hover:border-blue-500"
+                                                                            : "bg-slate-100 text-slate-400"
+                                                                }`}
+                                                            >
+
+                                                                <div className="font-bold">
+
+                                                                    {slot.time}
+
+                                                                </div>
+
+                                                                <div className="text-xs">
+
+                                                                    {isAvailable
+                                                                        ? "Available"
+                                                                        : "Booked"}
+
+                                                                </div>
+
+                                                            </button>
+
+                                                        );
+
+                                                    })}
+
+                                                </div>
+
+                                            </div>
+                                        ))
                                     ) : (
-                                        <div className="bg-rose-50/60 border border-rose-100 rounded-2xl p-6 text-center text-rose-600 text-xs font-bold">
+                                        <div className="bg-rose-50 border rounded-xl p-6 text-center">
                                             Clinic is closed or no doctor shifts are scheduled on this date.
                                         </div>
                                     )}
