@@ -297,27 +297,56 @@ function AboutSection({ clinic, mergedHours }) {
     );
 }
 
-function TimeSlotGrid({ clinicId, doctorId, activeDates, selectedAppointment, onSelectAppointment }) {
+function TimeSlotGrid({
+                          clinicId,
+                          doctorId,
+                          activeDates,
+                          selectedAppointment,
+                          onSelectAppointment,
+                          onProceedToBooking
+                      }) {
     const [slotsByDate, setSlotsByDate] = useState({});
     const [loadingSlots, setLoadingSlots] = useState(true);
-    const scrollRef = useRef(null);
 
+    const [selectedDate, setSelectedDate] = useState(activeDates[0]);
+    const [selectedServiceIds, setSelectedServiceIds] = useState(() => {
+        return selectedAppointment?.serviceIds || (
+            services.length > 0
+                ? [services[0].id || services[0].serviceId]
+                : []
+        );
+    });
+
+    const resolvedDocId = typeof doctorId === 'object'
+        ? (doctorId?.doctorId || doctorId?.id || doctorId?.userId)
+        : doctorId;
+
+    /*
+     * Normalize services so the component can work with:
+     * serviceId / id
+     * serviceName / name
+     * duration / durationMinutes
+     */
+    const treatments = services.map((service, index) => ({
+        id: service.serviceId || service.id || `service-${index}`,
+        name: service.serviceName || service.name || 'Dental Consultation',
+        duration: service.durationMinutes || service.duration || 30
+    }));
+
+    /*
+     * Get availability for the next 7 days.
+     */
     useEffect(() => {
         let cancelled = false;
 
-        // Resolve doctor ID across possible data shapes
-        const resolvedDocId = typeof doctorId === 'object'
-            ? (doctorId?.doctorId || doctorId?.id || doctorId?.userId)
-            : doctorId;
+        setLoadingSlots(true);
 
         Promise.all(
             activeDates.map(date => {
                 const dateStr = formatDateForApi(date);
-                const label = formatDateLabel(date);
 
-                // Pass as object { clinicId, date, doctorId } matching patientApi.js
                 return fetchAvailability({
-                    clinicId: clinicId,
+                    clinicId,
                     date: dateStr,
                     doctorId: resolvedDocId || undefined
                 })
@@ -325,136 +354,553 @@ function TimeSlotGrid({ clinicId, doctorId, activeDates, selectedAppointment, on
                         const rawSlots = Array.isArray(res)
                             ? res
                             : (res?.slots || res?.availableSlots || res?.data || []);
-                        return { date: dateStr, label, slots: rawSlots };
+
+                        return {
+                            date: dateStr,
+                            slots: rawSlots
+                        };
                     })
-                    .catch(() => ({ date: dateStr, label, slots: [] }));
+                    .catch(() => ({
+                        date: dateStr,
+                        slots: []
+                    }));
             })
         ).then(results => {
             if (cancelled) return;
-            // Collect all slots across all fetched dates
-            const allSlots = [];
-            for (const r of results) {
-                r.slots.forEach(s => {
-                    const rawTime = typeof s === 'string' ? s : (s.time || s.startTime || '');
-                    if (!rawTime) return;
-                    
-                    const timeWithSec = rawTime.length === 5 ? rawTime + ":00" : rawTime;
-                    // Convert UTC to Local
-                    const conv = utcToLocalSpecific(r.date, timeWithSec);
-                    
-                    allSlots.push({
-                        time: conv.localTime,
-                        rawTime: rawTime,
-                        available: typeof s === 'object' ? (s.available !== false) : true,
-                        date: conv.localDate, // LOCAL date
-                        originalUtcDate: r.date,
-                        scheduleId: s.scheduleId || s.id
-                    });
-                });
-            }
-            
-            // Group back into days based on activeDates
+
             const map = {};
-            activeDates.forEach(date => {
-                const dateStr = formatDateForApi(date);
-                const label = formatDateLabel(date);
-                
-                // Find all slots that resolved to this local date
-                map[label] = allSlots.filter(s => s.date === dateStr).sort((a, b) => a.time.localeCompare(b.time));
+
+            results.forEach(result => {
+                const convertedSlots = result.slots
+                    .map(slot => {
+                        const rawTime =
+                            typeof slot === 'string'
+                                ? slot
+                                : (slot.time || slot.startTime || '');
+
+                        if (!rawTime) return null;
+
+                        const timeWithSec =
+                            rawTime.length === 5
+                                ? `${rawTime}:00`
+                                : rawTime;
+
+                        const converted =
+                            utcToLocalSpecific(
+                                result.date,
+                                timeWithSec
+                            );
+
+                        return {
+                            time: converted.localTime,
+                            rawTime,
+                            available:
+                                typeof slot === 'object'
+                                    ? slot.available !== false
+                                    : true,
+                            date: converted.localDate,
+                            originalUtcDate: result.date,
+                            scheduleId:
+                                typeof slot === 'object'
+                                    ? (slot.scheduleId || slot.id)
+                                    : undefined
+                        };
+                    })
+                    .filter(Boolean);
+
+                map[result.date] = convertedSlots.sort(
+                    (a, b) => a.time.localeCompare(b.time)
+                );
             });
-            
+
             setSlotsByDate(map);
             setLoadingSlots(false);
         });
 
-        return () => { cancelled = true; };
-    }, [clinicId, doctorId, activeDates]);
+        return () => {
+            cancelled = true;
+        };
+    }, [clinicId, resolvedDocId, activeDates]);
 
-    const handleSlotClick = (day, time) => {
-        const resolvedDocId = typeof doctorId === 'object' ? (doctorId?.doctorId || doctorId?.id) : doctorId;
-        if (selectedAppointment?.doctorId === resolvedDocId && selectedAppointment?.day === day && selectedAppointment?.time === time) {
-            onSelectAppointment(null);
-        } else {
-            const slot = slotsByDate[day]?.find(s => s.time === time);
-            onSelectAppointment({
-                doctorId: resolvedDocId,
-                day,
-                time,
-                date: slot?.originalUtcDate || slot?.date,
-                rawTime: slot?.rawTime
-            });
-        }
+    /*
+     * Select a treatment.
+     */
+    const handleTreatmentClick = (serviceId) => {
+        setSelectedServiceIds(prev => {
+            if (prev.includes(serviceId)) {
+                if (prev.length === 1) return prev;
+                return prev.filter(id => id !== serviceId);
+            }
+
+            if (prev.length >= 2) return prev;
+
+            return [...prev, serviceId];
+        });
     };
 
-    const days = Object.keys(slotsByDate);
+    /*
+     * Select a time slot.
+     */
+    const handleSlotClick = (slot) => {
+        if (!slot.available) return;
 
-    if (loadingSlots) {
-        return (
-            <div className="cd-timeslot-section">
-                <p className="cd-timeslot-label">Loading availability...</p>
-            </div>
-        );
-    }
+        const dateStr = formatDateForApi(selectedDate);
 
-    if (days.length === 0) {
-        return (
-            <div className="cd-timeslot-section">
-                <p className="cd-timeslot-label">No available days found</p>
-            </div>
+        const isSameSlot =
+            selectedAppointment?.doctorId === resolvedDocId &&
+            selectedAppointment?.date === slot.originalUtcDate &&
+            selectedAppointment?.time === slot.time;
+
+        if (isSameSlot) {
+            onSelectAppointment(null);
+            return;
+        }
+
+        onSelectAppointment({
+            doctorId: resolvedDocId,
+            day: formatDateLabel(selectedDate),
+            time: slot.time,
+            date: slot.originalUtcDate,
+            rawTime: slot.rawTime,
+            serviceIds: selectedServiceIds
+        });
+    };
+
+    /*
+     * Keep appointment data synchronized when treatments change.
+     */
+    useEffect(() => {
+        if (!selectedAppointment) return;
+
+        onSelectAppointment({
+            ...selectedAppointment,
+            serviceIds: selectedServiceIds
+        });
+    }, [selectedServiceIds]);
+
+    const selectedDateStr = formatDateForApi(selectedDate);
+
+    const currentSlots =
+        slotsByDate[selectedDateStr] || [];
+
+    /*
+     * Group slots by hour.
+     *
+     * Example:
+     * 10:00
+     * 10:15
+     * 10:30
+     * 10:45
+     */
+    const groupedSlots = {};
+
+    currentSlots.forEach(slot => {
+        const hour = slot.time.split(':')[0];
+
+        if (!groupedSlots[hour]) {
+            groupedSlots[hour] = [];
+        }
+
+        groupedSlots[hour].push(slot);
+    });
+
+    const selectedTreatmentNames = treatments
+        .filter(t => selectedServiceIds.includes(t.id))
+        .map(t => t.name);
+
+    const selectedDuration = treatments
+        .filter(t => selectedServiceIds.includes(t.id))
+        .reduce((total, t) => total + Number(t.duration || 30), 0);
+
+    const selectedSlot =
+        currentSlots.find(
+            slot =>
+                selectedAppointment?.time === slot.time &&
+                selectedAppointment?.date === slot.originalUtcDate
         );
-    }
 
     return (
-        <div className="cd-timeslot-section">
-            <p className="cd-timeslot-label">SELECT A TIME FOR CONSULTATION</p>
-            <div className="cd-days-scroll-wrapper" ref={scrollRef}>
-                <div className="cd-days-container" style={{ minWidth: days.length > 3 ? `${days.length * 210}px` : undefined }}>
-                    {days.map(day => {
-                        const resolvedDocId = typeof doctorId === 'object' ? (doctorId?.doctorId || doctorId?.id) : doctorId;
+        <div className="cd-appointment-picker">
+
+            {/* ─────────────────────────────
+                1. TREATMENT
+            ───────────────────────────── */}
+
+            <div className="cd-appointment-section">
+
+                <div className="cd-appointment-heading">
+                    <span>SELECT TREATMENT & DURATION</span>
+                </div>
+
+                <div className="cd-treatment-list">
+
+                    {treatments.length > 0 ? (
+                        treatments.map(treatment => {
+                            const selected =
+                                selectedServiceIds.includes(treatment.id);
+
+                            return (
+                                <button
+                                    key={treatment.id}
+                                    type="button"
+                                    className={`cd-treatment-btn ${
+                                        selected
+                                            ? 'cd-treatment-selected'
+                                            : ''
+                                    }`}
+                                    onClick={() =>
+                                        handleTreatmentClick(treatment.id)
+                                    }
+                                >
+                                    <span className="cd-treatment-radio">
+                                        {selected ? '✓' : ''}
+                                    </span>
+
+                                    <span className="cd-treatment-name">
+                                        {treatment.name}
+                                    </span>
+
+                                    <span className="cd-treatment-duration">
+                                        {treatment.duration} min
+                                    </span>
+                                </button>
+                            );
+                        })
+                    ) : (
+                        <button
+                            type="button"
+                            className="cd-treatment-btn cd-treatment-selected"
+                        >
+                            <span className="cd-treatment-radio">✓</span>
+
+                            <span className="cd-treatment-name">
+                                Dental Consultation
+                            </span>
+
+                            <span className="cd-treatment-duration">
+                                30 min
+                            </span>
+                        </button>
+                    )}
+
+                </div>
+
+                {selectedServiceIds.length >= 2 && (
+                    <div className="cd-treatment-limit">
+                        Maximum of 2 treatments can be selected.
+                    </div>
+                )}
+
+            </div>
+
+
+            {/* ─────────────────────────────
+                2. DATE SELECTOR
+            ───────────────────────────── */}
+
+            <div className="cd-appointment-section">
+
+                <div className="cd-appointment-heading">
+                    <span>SELECT DATE</span>
+
+                    <span className="cd-appointment-legend">
+                        <span>
+                            <i className="cd-dot-selected"></i>
+                            Selected
+                        </span>
+
+                        <span>
+                            <i className="cd-dot-available"></i>
+                            Available
+                        </span>
+
+                        <span>
+                            <i className="cd-dot-booked"></i>
+                            Booked
+                        </span>
+                    </span>
+                </div>
+
+                <div className="cd-date-selector">
+
+                    {activeDates.map(date => {
+                        const dateStr =
+                            formatDateForApi(date);
+
+                        const isSelected =
+                            selectedDateStr === dateStr;
+
+                        const slots =
+                            slotsByDate[dateStr] || [];
+
+                        const availableCount =
+                            slots.filter(
+                                s => s.available
+                            ).length;
 
                         return (
-                            <div key={day} className="cd-day-column">
-                                <div className="cd-day-header">{day}</div>
-                                <div className="cd-day-slots">
-                                    {slotsByDate[day].length === 0 ? (
-                                        <span style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#94a3b8', fontSize: '13px', padding: '12px 0' }}>
-                                            Clinic is closed or no doctor shifts are scheduled on this date.
-                                        </span>
-                                    ) : (
-                                        slotsByDate[day].map(slot => {
-                                            const isAvailable = slot.available;
-                                            const isSelected = selectedAppointment?.doctorId === resolvedDocId && selectedAppointment?.day === day && selectedAppointment?.time === slot.time;
-                                            const isAnotherSelected = selectedAppointment !== null && !isSelected;
+                            <button
+                                key={dateStr}
+                                type="button"
+                                className={`cd-date-btn ${
+                                    isSelected
+                                        ? 'cd-date-selected'
+                                        : ''
+                                }`}
+                                onClick={() => {
+                                    setSelectedDate(date);
 
-                                            let slotClass = 'cd-slot-unavailable';
-                                            if (isAvailable) {
-                                                if (isSelected) {
-                                                    slotClass = 'cd-slot-selected';
-                                                } else if (isAnotherSelected) {
-                                                    slotClass = 'cd-slot-unselected';
-                                                } else {
-                                                    slotClass = 'cd-slot-available';
-                                                }
-                                            }
+                                    if (
+                                        selectedAppointment &&
+                                        selectedAppointment.date !==
+                                        dateStr
+                                    ) {
+                                        onSelectAppointment(null);
+                                    }
+                                }}
+                            >
+                                <span className="cd-date-top">
+                                    {formatDateLabel(date).split(',')[0]}
+                                </span>
 
-                                            return (
-                                                <button
-                                                    key={slot.time}
-                                                    className={`cd-slot-btn ${slotClass}`}
-                                                    disabled={!isAvailable}
-                                                    onClick={() => handleSlotClick(day, slot.time)}
-                                                >
-                                                    {slot.time}
-                                                </button>
-                                            );
-                                        })
+                                <strong>
+                                    {date.getDate()}
+                                </strong>
+
+                                <span className="cd-date-month">
+                                    {date.toLocaleDateString(
+                                        'en-US',
+                                        { month: 'short' }
                                     )}
-                                </div>
-                            </div>
+                                </span>
+
+                                {availableCount > 0 && (
+                                    <span className="cd-date-available">
+                                        {availableCount} slots
+                                    </span>
+                                )}
+                            </button>
                         );
                     })}
+
                 </div>
             </div>
+
+
+            {/* ─────────────────────────────
+                3. TIME
+            ───────────────────────────── */}
+
+            <div className="cd-appointment-section">
+
+                <div className="cd-appointment-heading">
+                    <span>SELECT TIME</span>
+
+                    {loadingSlots && (
+                        <span className="cd-loading-text">
+                            Loading...
+                        </span>
+                    )}
+                </div>
+
+                {!loadingSlots && currentSlots.length === 0 ? (
+
+                    <div className="cd-no-slots">
+                        No available appointments for this date.
+                    </div>
+
+                ) : (
+
+                    <div className="cd-hour-list">
+
+                        {Object.entries(groupedSlots)
+                            .sort(([a], [b]) =>
+                                a.localeCompare(b)
+                            )
+                            .map(([hour, slots]) => (
+
+                                <div
+                                    key={hour}
+                                    className="cd-hour-row"
+                                >
+
+                                    <div className="cd-hour-label">
+                                        <strong>
+                                            {formatTime12h(
+                                                `${hour}:00`
+                                            )}
+                                        </strong>
+
+                                        <span>
+                                            {slots.filter(
+                                                s => s.available
+                                            ).length} Slots Free
+                                        </span>
+                                    </div>
+
+                                    <div className="cd-hour-slots">
+
+                                        {[0, 15, 30, 45].map(
+                                            minute => {
+
+                                                const minuteString =
+                                                    String(
+                                                        minute
+                                                    ).padStart(
+                                                        2,
+                                                        '0'
+                                                    );
+
+                                                const slot =
+                                                    slots.find(
+                                                        s =>
+                                                            s.time.startsWith(
+                                                                `${hour}:${minuteString}`
+                                                            )
+                                                    );
+
+                                                /*
+                                                 * If backend doesn't
+                                                 * return this 15-min
+                                                 * slot, don't create
+                                                 * a fake appointment.
+                                                 */
+                                                if (!slot) {
+                                                    return (
+                                                        <div
+                                                            key={minute}
+                                                            className="cd-slot-empty"
+                                                        />
+                                                    );
+                                                }
+
+                                                const isSelected =
+                                                    selectedAppointment?.doctorId ===
+                                                    resolvedDocId &&
+                                                    selectedAppointment?.date ===
+                                                    slot.originalUtcDate &&
+                                                    selectedAppointment?.time ===
+                                                    slot.time;
+
+                                                return (
+                                                    <button
+                                                        key={minute}
+                                                        type="button"
+                                                        disabled={
+                                                            !slot.available
+                                                        }
+                                                        className={`cd-new-slot ${
+                                                            isSelected
+                                                                ? 'cd-new-slot-selected'
+                                                                : slot.available
+                                                                    ? 'cd-new-slot-available'
+                                                                    : 'cd-new-slot-booked'
+                                                        }`}
+                                                        onClick={() =>
+                                                            handleSlotClick(
+                                                                slot
+                                                            )
+                                                        }
+                                                    >
+                                                        <span>
+                                                            {slot.time}
+                                                        </span>
+
+                                                        {!slot.available && (
+                                                            <small>
+                                                                Booked
+                                                            </small>
+                                                        )}
+
+                                                        {slot.available &&
+                                                            !isSelected && (
+                                                                <small>
+                                                                    Available
+                                                                </small>
+                                                            )}
+                                                    </button>
+                                                );
+                                            }
+                                        )}
+
+                                    </div>
+
+                                </div>
+                            ))}
+
+                    </div>
+                )}
+
+            </div>
+
+
+            {/* ─────────────────────────────
+                4. BOTTOM SUMMARY
+            ───────────────────────────── */}
+
+            {selectedAppointment && (
+
+                <div className="cd-appointment-summary">
+
+                    <div className="cd-summary-check">
+                        ✓
+                    </div>
+
+                    <div className="cd-summary-info">
+
+                        <strong>
+                            {selectedAppointment.time} —{' '}
+                            {selectedDuration} MIN
+                        </strong>
+
+                        <span>
+                            {selectedTreatmentNames.join(', ') ||
+                                'Dental Consultation'}
+                        </span>
+
+                        <span>
+                            {formatDateLabel(selectedDate)}
+                        </span>
+
+                    </div>
+
+                    <div className="cd-summary-fee">
+
+                        <small>
+                            TOTAL FEE
+                        </small>
+
+                        <strong>
+                            {/* The actual clinic fee remains
+                                handled by your booking page */}
+                            {selectedDuration} MIN
+                        </strong>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        className="cd-summary-book"
+                        onClick={() => {
+                            /*
+                             * DoctorCard's booking button will
+                             * handle navigation.
+                             */
+                            const event =
+                                new CustomEvent(
+                                    'clinic-book-selected'
+                                );
+
+                            window.dispatchEvent(event);
+                        }}
+                    >
+                        Proceed to Booking
+                        <span>→</span>
+                    </button>
+
+                </div>
+            )}
+
         </div>
     );
 }
@@ -484,6 +930,21 @@ function DoctorCard({
                 selectedDate: isSelectedDoctor ? selectedAppointment?.date : undefined,
                 selectedTime: isSelectedDoctor ? selectedAppointment?.time : undefined,
                 selectedDay: isSelectedDoctor ? selectedAppointment?.day : undefined
+            }
+        });
+    };
+    const handleProceedToBooking = () => {
+        if (!selectedAppointment) return;
+
+        navigate(`/book-appointment/${clinicId}`, {
+            state: {
+                clinicId,
+                doctorId: doctorId,
+                doctorName: doctor.fullName,
+                doctorSpecialty: doctor.specialty,
+                selectedDate: selectedAppointment.date,
+                selectedTime: selectedAppointment.time,
+                selectedDay: selectedAppointment.day
             }
         });
     };
@@ -586,6 +1047,7 @@ function DoctorCard({
                     activeDates={activeDates}
                     selectedAppointment={selectedAppointment}
                     onSelectAppointment={onSelectAppointment}
+                    onProceedToBooking={handleProceedToBooking}
                 />
             )}
         </div>
@@ -827,6 +1289,7 @@ export default function ClinicDetails() {
                                     onSelectAppointment={setSelectedAppointment}
                                     isFavorited={isFav}
                                     onToggleFavorite={handleToggleFavorite}
+                                    services={clinic.services || []}
                                 />
                             );
                         })}
