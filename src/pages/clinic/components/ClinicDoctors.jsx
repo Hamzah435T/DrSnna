@@ -12,6 +12,7 @@ import {
 } from "../../../api/clinicDoctorsApi";
 import { fetchClinicHours } from "../../../api/clinicProfileApi";
 import ModernAlertModal from "../../../components/ModernAlertModal";
+import { AddDoctorModal } from "../../../components/doctors/AddDoctorModal";
 
 /**
  * ClinicDoctors – Doctor Management page
@@ -33,7 +34,10 @@ export default function ClinicDoctors() {
     // Which card's 3-dot menu is open (doctorId or null)
     const [openMenuId, setOpenMenuId] = useState(null);
 
-    // Profile modal (add / edit)
+    // Add Doctor modal
+    const [isAddDoctorModalOpen, setIsAddDoctorModalOpen] = useState(false);
+
+    // Profile modal (edit)
     const [profileModal, setProfileModal] = useState({
         open: false,
         editingDoctor: null, // null → add mode
@@ -97,8 +101,17 @@ export default function ClinicDoctors() {
 
     // ── Handlers ─────────────────────────────────────────────────────────────
 
+    async function refreshDoctors() {
+        try {
+            const docs = await fetchDoctors();
+            setDoctors(docs);
+        } catch (err) {
+            console.error("Failed to refresh doctors:", err);
+        }
+    }
+
     function openAddDoctor() {
-        setProfileModal({ open: true, editingDoctor: null });
+        setIsAddDoctorModalOpen(true);
     }
 
     function openEditDoctor(doctor) {
@@ -304,7 +317,15 @@ export default function ClinicDoctors() {
                 </div>
             )}
 
-            {/* ─── Profile Modal (Add / Edit) ─── */}
+            {/* ─── Add Doctor Modal ─── */}
+            <AddDoctorModal
+                isOpen={isAddDoctorModalOpen}
+                onClose={() => setIsAddDoctorModalOpen(false)}
+                onSuccess={refreshDoctors}
+                specialties={specialties}
+            />
+
+            {/* ─── Profile Modal (Edit) ─── */}
             {profileModal.open && (
                 <ProfileModal
                     doctor={profileModal.editingDoctor}
