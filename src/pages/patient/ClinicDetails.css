@@ -451,125 +451,458 @@
     transform: rotate(180deg);
 }
 
-/* ── Time Slots ────────────────────────────── */
-.cd-timeslot-section {
-    margin-top: 20px;
+/* ══════════════════════════════════════════════
+   NEW APPOINTMENT PICKER
+   ══════════════════════════════════════════════ */
+
+.cd-appointment-picker {
+    margin-top: 18px;
+    border-top: 1px solid #e2e8f0;
     padding-top: 20px;
-    border-top: 1px solid #f1f5f9;
 }
 
-.cd-timeslot-label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    color: #64748b;
-    text-transform: uppercase;
-    margin: 0 0 16px 0;
+/* ── Appointment Sections ─────────────────── */
+
+.cd-appointment-section {
+    margin-bottom: 22px;
 }
 
-.cd-days-scroll-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 transparent;
-}
-
-.cd-days-scroll-wrapper::-webkit-scrollbar {
-    height: 6px;
-}
-
-.cd-days-scroll-wrapper::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.cd-days-scroll-wrapper::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
-}
-
-.cd-days-container {
+.cd-appointment-heading {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .6px;
+    color: #64748b;
+}
+
+.cd-appointment-legend {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.cd-appointment-legend span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cd-appointment-legend i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.cd-dot-selected {
+    background: #004aad;
+}
+
+.cd-dot-available {
+    background: #94a3b8;
+}
+
+.cd-dot-booked {
+    background: #d1d5db;
+}
+
+/* ── Treatment Buttons ───────────────────── */
+
+.cd-treatment-list {
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
-.cd-day-column {
-    min-width: 200px;
-    flex: 1;
+.cd-treatment-btn {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid #dbe3ec;
+    border-radius: 8px;
+    background: #fff;
+    color: #475569;
+    cursor: pointer;
+    transition: all .18s ease;
+}
+
+.cd-treatment-btn:hover {
+    border-color: #93c5fd;
+    background: #f8fbff;
+}
+
+.cd-treatment-selected {
+    border-color: #004aad;
+    background: #eff6ff;
+    color: #0f3d78;
+    box-shadow: 0 0 0 1px rgba(0, 74, 173, .08);
+}
+
+.cd-treatment-radio {
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    border: 1.5px solid #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 900;
+    flex-shrink: 0;
+}
+
+.cd-treatment-selected .cd-treatment-radio {
+    border-color: #004aad;
+    background: #004aad;
+    color: white;
+}
+
+.cd-treatment-name {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.cd-treatment-duration {
+    font-size: 10px;
+    color: #64748b;
+    white-space: nowrap;
+}
+
+.cd-treatment-limit {
+    margin-top: 8px;
+    font-size: 10px;
+    color: #64748b;
+}
+
+/* ── Date Selector ───────────────────────── */
+
+.cd-date-selector {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 7px;
+}
+
+.cd-date-btn {
+    min-width: 0;
+    padding: 9px 5px;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    overflow: hidden;
-    background: #ffffff;
-}
-
-
-
-.cd-day-header {
-    background: #f1f5f9;
-    padding: 10px 0;
-    text-align: center;
-    font-size: 14px;
-    font-weight: 500;
-    color: #334155;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.cd-day-slots {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    padding: 12px;
-}
-
-.cd-slot-btn {
-    padding: 10px 4px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 500;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     cursor: pointer;
-    text-align: center;
-    border: 1px solid transparent;
-    transition: all 0.15s;
+    transition: all .18s ease;
+    color: #64748b;
 }
 
-/* Base available style (when nothing is selected) */
-.cd-slot-available {
-    background: #e0f2fe;
-    color: #008298;
-    border-color: #bae6fd;
+.cd-date-btn:hover {
+    border-color: #93c5fd;
+    background: #f8fbff;
 }
 
-.cd-slot-available:hover {
-    background: #bae6fd;
-    border-color: #7dd3fc;
+.cd-date-selected {
+    background: #004aad;
+    border-color: #004aad;
+    color: white;
+    box-shadow: 0 4px 10px rgba(0, 74, 173, .18);
 }
 
-/* Selected style */
-.cd-slot-selected {
-    background: #0284c7;
-    color: #ffffff;
-    border-color: #0284c7;
+.cd-date-selected:hover {
+    background: #003a8c !important;
+    border-color: #003a8c !important;
+    color: white !important;
 }
 
-/* Unselected style (when something else is selected) */
-.cd-slot-unselected {
+.cd-date-top {
+    font-size: 9px;
+    font-weight: 700;
+}
+
+.cd-date-btn strong {
+    margin-top: 2px;
+    font-size: 16px;
+    line-height: 20px;
+}
+
+.cd-date-month {
+    font-size: 9px;
+    opacity: .8;
+}
+
+.cd-date-available {
+    margin-top: 3px;
+    font-size: 8px;
+    color: #10b981;
+    font-weight: 700;
+}
+
+.cd-date-selected .cd-date-available {
+    color: #dbeafe;
+}
+
+/* ── Hour Rows ────────────────────────────── */
+
+.cd-hour-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cd-hour-row {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 10px;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    background: #fff;
+}
+
+.cd-hour-label {
+    display: flex;
+    flex-direction: column;
+    padding-left: 3px;
+}
+
+.cd-hour-label strong {
+    font-size: 12px;
+    color: #334155;
+}
+
+.cd-hour-label span {
+    margin-top: 2px;
+    font-size: 8px;
+    color: #64748b;
+}
+
+.cd-hour-slots {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+.cd-new-slot {
+    min-height: 42px;
+    border-radius: 7px;
+    border: 1px solid #dbe3ec;
     background: #f8fafc;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s ease;
+}
+
+.cd-new-slot span {
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.cd-new-slot small {
+    margin-top: 2px;
+    font-size: 7px;
     color: #94a3b8;
-    border-color: #e2e8f0;
 }
 
-.cd-slot-unselected:hover {
-    background: #f1f5f9;
+.cd-new-slot-available:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: #0057b8;
 }
 
-/* Unavailable/Past style */
-.cd-slot-unavailable {
+.cd-new-slot-selected {
+    background: #004aad;
+    border-color: #004aad;
+    color: white;
+    box-shadow: 0 3px 8px rgba(0, 74, 173, .2);
+}
+
+.cd-new-slot-selected:hover {
+    background: #003a8c !important;
+    border-color: #003a8c !important;
+    color: white !important;
+}
+
+.cd-new-slot-selected small {
+    color: #dbeafe;
+}
+
+.cd-new-slot-booked {
     background: #f1f5f9;
-    color: #cbd5e1;
     border-color: #f1f5f9;
+    color: #cbd5e1;
     cursor: not-allowed;
+}
+
+.cd-new-slot-booked span {
     text-decoration: line-through;
+}
+
+.cd-new-slot-booked small {
+    color: #cbd5e1;
+}
+
+.cd-slot-empty {
+    min-height: 42px;
+    border-radius: 7px;
+    background: #fafafa;
+    border: 1px solid #f1f5f9;
+}
+
+/* ── Empty / Loading ──────────────────────── */
+
+.cd-no-slots {
+    padding: 22px;
+    border-radius: 9px;
+    border: 1px dashed #cbd5e1;
+    background: #f8fafc;
+    text-align: center;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.cd-loading-text {
+    color: #0284c7;
+    font-size: 10px;
+    letter-spacing: 0;
+    animation: cd-pulse 1.4s infinite;
+}
+
+@keyframes cd-pulse {
+    0%, 100% {
+        opacity: .45;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+/* ── Appointment Summary ──────────────────── */
+
+.cd-appointment-summary {
+    display: grid;
+    grid-template-columns: 42px 1fr auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px;
+    margin-top: 6px;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    background: #f8fbff;
+}
+
+.cd-summary-check {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #004aad;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+}
+
+.cd-summary-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.cd-summary-info strong {
+    font-size: 13px;
+    color: #0f172a;
+}
+
+.cd-summary-info span {
+    font-size: 9px;
+    color: #64748b;
+}
+
+.cd-summary-fee {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.cd-summary-fee small {
+    font-size: 8px;
+    color: #64748b;
+}
+
+.cd-summary-fee strong {
+    margin-top: 2px;
+    font-size: 12px;
+    color: #0f172a;
+}
+
+.cd-summary-book {
+    min-height: 38px;
+    padding: 0 15px;
+    border: none;
+    border-radius: 7px;
+    background: #004aad;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all .18s ease;
+}
+
+.cd-summary-book:hover {
+    background: #003b8a;
+    transform: translateY(-1px);
+}
+
+.cd-summary-book span {
+    font-size: 15px;
+}
+
+/* ── Mobile ───────────────────────────────── */
+
+@media (max-width: 700px) {
+
+    .cd-date-selector {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .cd-hour-row {
+        grid-template-columns: 65px 1fr;
+    }
+
+    .cd-hour-slots {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .cd-appointment-summary {
+        grid-template-columns: 34px 1fr;
+    }
+
+    .cd-summary-fee {
+        display: none;
+    }
+
+    .cd-summary-book {
+        grid-column: 1 / -1;
+        justify-content: center;
+    }
 }
 
 /* ══════════════════════════════════════════════
