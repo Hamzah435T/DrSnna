@@ -1,6 +1,6 @@
 import 'react';
 import { NavLink, useNavigate } from 'react-router';
-import { LayoutDashboard, UserRound, Calendar, Settings, HelpCircle, LogOut, Stethoscope } from 'lucide-react';
+import { LayoutDashboard, UserRound, Calendar, Settings, HelpCircle, LogOut, Stethoscope, ShieldCheck } from 'lucide-react';
 import { clearAuth } from '../auth/authStorage';
 
 export default function ClinicSidebar() {
@@ -15,6 +15,7 @@ export default function ClinicSidebar() {
         { name: 'Dashboard', path: '/clinic', icon: LayoutDashboard, end: true },
         { name: 'Doctors', path: '/clinic/doctors', icon: UserRound },
         { name: 'Appointments', path: '/clinic/appointments', icon: Calendar },
+        { name: 'Insurances', path: '/clinic/insurances', icon: ShieldCheck, badge: '4' },
         { name: 'Settings', path: '/clinic/settings', icon: Settings },
     ];
 
@@ -42,14 +43,31 @@ export default function ClinicSidebar() {
                                 to={item.path}
                                 end={item.end}
                                 className={({ isActive }) =>
-                                    `flex items-center gap-3 px-4 py-3 rounded-xl font-medium text-sm transition-colors ${isActive
+                                    `flex items-center justify-between px-4 py-3 rounded-xl font-medium text-sm transition-colors ${isActive
                                         ? 'bg-blue-600 text-white shadow-sm'
                                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                     }`
                                 }
                             >
-                                <Icon className="w-5 h-5" />
-                                {item.name}
+                                {({ isActive }) => (
+                                    <>
+                                        <div className="flex items-center gap-3">
+                                            <Icon className="w-5 h-5" />
+                                            <span>{item.name}</span>
+                                        </div>
+                                        {item.badge && (
+                                            <span
+                                                className={`text-xs px-2 py-0.5 rounded-full font-bold transition-colors ${
+                                                    isActive
+                                                        ? 'bg-blue-800 text-white'
+                                                        : 'bg-blue-50 text-blue-600'
+                                                }`}
+                                            >
+                                                {item.badge}
+                                            </span>
+                                        )}
+                                    </>
+                                )}
                             </NavLink>
                         );
                     })}

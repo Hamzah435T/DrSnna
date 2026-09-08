@@ -20,6 +20,7 @@ import ClinicOverview from "../pages/clinic/ClinicOverview";
 import ClinicProfileSettings from "../pages/clinic/ClinicProfileSettings.jsx";
 import ClinicAppointments from "../pages/clinic/components/ClinicAppointments.jsx";
 import ClinicDoctors from "../pages/clinic/components/ClinicDoctors.jsx";
+import ClinicInsurances from "../pages/clinic/components/ClinicInsurances.jsx";
 import DoctorDashboard from "../pages/doctor/DoctorDashboard.jsx";
 import Unauthorized from "../pages/Unauthorized.jsx";
 import ClinicDetails from "../pages/patient/ClinicDetails.jsx";
@@ -150,10 +151,12 @@ export const router = createBrowserRouter([
     {
         path: "/",
         element: <PatientHomePage />,
-        loader: () => {const auth = getAuth();
+        loader: () => {
+            const auth = getAuth();
             if (auth?.role === "CLINIC") return redirect("/clinic");
             if (auth?.role === "DOCTOR") return redirect("/doctor");
-            return requireRole("PATIENT");}
+            return requireRole("PATIENT");
+        }
     },
     {
         path: "/login",
@@ -188,6 +191,14 @@ export const router = createBrowserRouter([
             {
                 path: "appointments",
                 element: <ClinicAppointments />,
+            },
+            {
+                path: "insurances",
+                element: <ClinicInsurances />,
+            },
+            {
+                path: "insurance",
+                element: <ClinicInsurances />,
             },
             {
                 path: "settings",
