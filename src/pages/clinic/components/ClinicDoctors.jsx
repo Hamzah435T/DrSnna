@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { UserPlus, Mail, Stethoscope, Info, Send, ChevronDown, RefreshCw } from 'lucide-react';
 import {
     fetchDoctors,
     fetchSpecialties,
@@ -12,6 +13,7 @@ import {
 } from "../../../api/clinicDoctorsApi";
 import { fetchClinicHours } from "../../../api/clinicProfileApi";
 import ModernAlertModal from "../../../components/ModernAlertModal";
+import { AddDoctorModal } from "../../../components/doctors/AddDoctorModal";
 
 /**
  * ClinicDoctors – Doctor Management page
@@ -33,7 +35,10 @@ export default function ClinicDoctors() {
     // Which card's 3-dot menu is open (doctorId or null)
     const [openMenuId, setOpenMenuId] = useState(null);
 
-    // Profile modal (add / edit)
+    // Add Doctor modal
+    const [isAddDoctorModalOpen, setIsAddDoctorModalOpen] = useState(false);
+
+    // Profile modal (edit)
     const [profileModal, setProfileModal] = useState({
         open: false,
         editingDoctor: null, // null → add mode
@@ -97,8 +102,17 @@ export default function ClinicDoctors() {
 
     // ── Handlers ─────────────────────────────────────────────────────────────
 
+    async function refreshDoctors() {
+        try {
+            const docs = await fetchDoctors();
+            setDoctors(docs);
+        } catch (err) {
+            console.error("Failed to refresh doctors:", err);
+        }
+    }
+
     function openAddDoctor() {
-        setProfileModal({ open: true, editingDoctor: null });
+        setIsAddDoctorModalOpen(true);
     }
 
     function openEditDoctor(doctor) {
@@ -304,7 +318,15 @@ export default function ClinicDoctors() {
                 </div>
             )}
 
-            {/* ─── Profile Modal (Add / Edit) ─── */}
+            {/* ─── Add Doctor Modal ─── */}
+            <AddDoctorModal
+                isOpen={isAddDoctorModalOpen}
+                onClose={() => setIsAddDoctorModalOpen(false)}
+                onSuccess={refreshDoctors}
+                specialties={specialties}
+            />
+
+            {/* ─── Profile Modal (Edit) ─── */}
             {profileModal.open && (
                 <ProfileModal
                     doctor={profileModal.editingDoctor}
@@ -510,46 +532,36 @@ function DropdownItem({ icon, label, onClick, danger = false }) {
    ══════════════════════════════════════════════════════════════════════════════ */
 
 /** ─── Profile Modal (Add / Edit Doctor) ─── */
+/** ─── Profile Modal (Add / Edit Doctor) ─── */
 function ProfileModal({ doctor, specialties, onSave, onClose }) {
+    const isEdit = !!doctor?.fullName;
     const [fullName, setFullName] = useState(doctor?.fullName || "");
+    const [email, setEmail] = useState("");
 
-    // Parse existing comma-separated specialties or default to empty array
-    const [selectedSpecialties, setSelectedSpecialties] = useState(() => {
+    const [selectedSpecialty, setSelectedSpecialty] = useState(() => {
         if (doctor?.specialty) {
-            return doctor.specialty.split(',').map(s => s.trim()).filter(Boolean);
+            const arr = doctor.specialty.split(',').map(s => s.trim()).filter(Boolean);
+            return arr.length > 0 ? arr[0] : "";
         }
-        return [];
+        return "";
     });
-    const [fallbackSpecialty, setFallbackSpecialty] = useState(doctor?.specialty || "");
 
     const [bio, setBio] = useState(doctor?.bio || "");
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
-
-    const toggleSpecialty = (s) => {
-        setError(""); // clear error on change
-        setSelectedSpecialties(prev =>
-            prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]
-        );
-    };
 
     async function handleSubmit(e) {
         e.preventDefault();
         setError("");
 
         if (!fullName.trim()) return;
-
-        const finalSpecialty = (specialties && specialties.length > 0)
-            ? selectedSpecialties.join(", ")
-            : fallbackSpecialty;
-
-        if (!finalSpecialty.trim()) {
-            setError("Please select at least one specialty.");
+        if (!selectedSpecialty.trim()) {
+            setError("Please select a specialty.");
             return;
         }
 
         setSaving(true);
-        await onSave({ fullName: fullName.trim(), specialty: finalSpecialty, bio: bio.trim() });
+        await onSave({ fullName: fullName.trim(), email: email.trim(), specialty: selectedSpecialty, bio: bio.trim() });
         setSaving(false);
     }
 
@@ -558,102 +570,148 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
             <form
                 onSubmit={handleSubmit}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-[480px] mx-4 p-7 animate-[scaleIn_0.2s_ease-out]"
+                className="bg-white rounded-[16px] shadow-2xl w-full max-w-[540px] mx-4 overflow-hidden animate-[scaleIn_0.2s_ease-out]"
             >
-                <h2 className="text-lg font-bold text-gray-900 mb-6">Doctor Profile</h2>
-
-                {/* Full Name */}
-                <label className="block mb-4">
-                    <span className="text-xs font-semibold text-blue-700 mb-1 block">Full Name</span>
-                    <input
-                        type="text"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-                        placeholder="Enter doctor's full name"
-                        required
-                    />
-                </label>
-
-                {/* Specialty */}
-                <label className="block mb-4">
-                    <span className="text-xs font-semibold text-blue-700 mb-2 block">Specialties</span>
-                    {specialties && specialties.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                            {specialties.map((s) => {
-                                const isSelected = selectedSpecialties.includes(s);
-                                return (
-                                    <button
-                                        key={s}
-                                        type="button"
-                                        onClick={() => toggleSpecialty(s)}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isSelected
-                                            ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
-                                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50'
-                                            } flex items-center gap-1.5 cursor-pointer`}
-                                    >
-                                        <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-gray-300 bg-white'}`}>
-                                            {isSelected && (
-                                                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                                </svg>
-                                            )}
-                                        </div>
-                                        {s}
-                                    </button>
-                                );
-                            })}
+                {/* Header */}
+                <div className="flex items-start justify-between p-7 pb-5">
+                    <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 border border-blue-100/50">
+                            <UserPlus className="w-5 h-5" />
                         </div>
-                    ) : (
-                        <input
-                            type="text"
-                            value={fallbackSpecialty}
-                            onChange={(e) => setFallbackSpecialty(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-                            placeholder="e.g. General Dentistry, Orthodontics"
-                        />
-                    )}
-                </label>
-
-                {/* Brief Bio */}
-                <label className="block mb-6">
-                    <span className="text-xs font-semibold text-blue-700 mb-1 block">Brief Bio</span>
-                    <textarea
-                        value={bio}
-                        onChange={(e) => setBio(e.target.value)}
-                        rows={4}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all bg-gray-50"
-                        placeholder="Short description of the doctor's experience"
-                    />
-                </label>
-
-                {error && (
-                    <div className="mb-6 text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100 flex items-center gap-2 animate-[scaleIn_0.2s_ease-out]">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="8" x2="12" y2="12"></line>
-                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                        </svg>
-                        {error}
+                        <div>
+                            <h2 className="text-[17px] font-bold text-slate-900">{isEdit ? "Edit Doctor Profile" : "Add New Doctor"}</h2>
+                            <p className="text-xs text-slate-500 mt-0.5">Add a healthcare practitioner to your clinic roster.</p>
+                        </div>
                     </div>
-                )}
+                    <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+                        <CloseIcon />
+                    </button>
+                </div>
 
-                {/* Actions */}
-                <div className="flex justify-center gap-3">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="px-6 py-2.5 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        disabled={saving}
-                        className="px-8 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-md shadow-blue-200 disabled:opacity-60 cursor-pointer"
-                    >
-                        {saving ? "Saving…" : "Save"}
-                    </button>
+                <div className="px-7 py-2 flex flex-col gap-5">
+                    {/* Full Name */}
+                    <label className="block">
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">Doctor Full Name <span className="text-red-500">*</span></span>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                <UserPlus className="w-4 h-4" />
+                            </div>
+                            <input
+                                type="text"
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
+                                className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all font-medium placeholder:text-slate-400"
+                                placeholder="Dr. Tariq Haddad"
+                                required
+                            />
+                        </div>
+                    </label>
+
+                    {/* Email Address */}
+                    <div className="block">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">Doctor Email Address <span className="text-red-500">*</span></span>
+                            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-[10px] font-bold">
+                                <RefreshCw className="w-3 h-3" />
+                                Auto-Notification
+                            </div>
+                        </div>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
+                                <Mail className="w-4 h-4" />
+                            </div>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full border border-blue-200 bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all font-medium placeholder:text-slate-400"
+                                placeholder="tariq.haddad@gmail.com"
+                                required
+                            />
+                        </div>
+                        <div className="mt-2 text-[10px] text-blue-700/90 flex items-start gap-1.5">
+                            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            <span className="font-medium leading-relaxed">
+                                <span className="font-bold">Email Notification:</span> When this doctor is added, the system automatically sends a notification email to this address to verify their roster placement and login access.
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Specialty */}
+                    <label className="block">
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">Medical Specialty <span className="text-red-500">*</span></span>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                <Stethoscope className="w-4 h-4" />
+                            </div>
+                            <select
+                                value={selectedSpecialty}
+                                onChange={(e) => setSelectedSpecialty(e.target.value)}
+                                className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all font-medium appearance-none bg-white"
+                                required
+                            >
+                                <option value="" disabled>Select a specialty...</option>
+                                {specialties?.length > 0 ? (
+                                    specialties.map(s => <option key={s} value={s}>{s}</option>)
+                                ) : (
+                                    <>
+                                        <option value="Orthodontics">Orthodontics</option>
+                                        <option value="General Dentistry">General Dentistry</option>
+                                        <option value="Pediatric Dentistry">Pediatric Dentistry</option>
+                                        <option value="Endodontics">Endodontics</option>
+                                        <option value="Oral Surgery">Oral Surgery</option>
+                                    </>
+                                )}
+                            </select>
+                            <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                                <ChevronDown className="w-4 h-4" />
+                            </div>
+                        </div>
+                    </label>
+
+                    {/* Bio */}
+                    <label className="block mb-2">
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 block">Doctor Bio & Credentials</span>
+                        <textarea
+                            value={bio}
+                            onChange={(e) => setBio(e.target.value)}
+                            rows={3}
+                            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all font-medium placeholder:text-slate-400"
+                            placeholder="Specialist in clear aligners and orthodontic diagnostics with 7+ years of clinical practice in Amman."
+                        />
+                    </label>
+
+                    {error && (
+                        <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100 flex items-center gap-2">
+                            <Info className="w-4 h-4 shrink-0" />
+                            {error}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer */}
+                <div className="p-7 pt-4 flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                        <span className="text-[10px] text-slate-500 font-medium leading-tight max-w-[140px]">Doctor will receive automated onboarding email</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-6 py-2.5 text-[11px] font-bold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            className="flex items-center gap-2 px-6 py-2.5 text-[11px] font-bold text-white bg-[#2563eb] rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-60 cursor-pointer"
+                        >
+                            <Send className="w-3.5 h-3.5" />
+                            {saving ? "Saving..." : (isEdit ? "Save Changes" : "Add Doctor & Send Email")}
+                        </button>
+                    </div>
                 </div>
             </form>
         </ModalBackdrop>
