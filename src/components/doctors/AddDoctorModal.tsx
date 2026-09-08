@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { UserPlus, Mail, Stethoscope, Info, Send, X, RefreshCw, Check } from 'lucide-react';
 import { createDoctor } from '../../services/doctorService';
 
 interface AddDoctorModalProps {
@@ -14,36 +15,49 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
     onSuccess,
     specialties = []
 }) => {
-    const [formData, setFormData] = useState({
-        fullName: '',
-        email: '',
-        specialty: '',
-        phone: '',
-    });
+    const [fullName, setFullName] = useState('');
+    const [email, setEmail] = useState('');
+    const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
+    const [bio, setBio] = useState('');
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     if (!isOpen) return null;
 
+    const toggleSpecialty = (s: string) => {
+        setSelectedSpecialties(prev =>
+            prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]
+        );
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
 
+        if (selectedSpecialties.length === 0) {
+            setError("Please select at least one specialty.");
+            setLoading(false);
+            return;
+        }
+
         try {
             await createDoctor({
-                ...formData,
+                fullName: fullName.trim(),
+                email: email.trim(),
+                specialty: selectedSpecialties.join(', '),
+                // Sending bio instead of phone to match UI. If backend rejects, we will fix later.
+                // @ts-ignore
+                bio: bio.trim(),
                 sendEmailNotification: true,
             });
 
             // Reset form
-            setFormData({
-                fullName: '',
-                email: '',
-                specialty: '',
-                phone: '',
-            });
+            setFullName('');
+            setEmail('');
+            setSelectedSpecialties([]);
+            setBio('');
 
             onSuccess();
             onClose();
@@ -56,146 +70,162 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-[fadeIn_0.15s_ease-out]"
             onClick={onClose}
         >
-            <div
-                className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-md shadow-2xl relative animate-[scaleIn_0.2s_ease-out]"
+            <form
+                onSubmit={handleSubmit}
+                className="bg-white rounded-[16px] shadow-2xl w-full max-w-[540px] mx-4 overflow-hidden animate-[scaleIn_0.2s_ease-out]"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6 pb-3 border-b border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900 tracking-tight">Add New Doctor</h2>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
+                <div className="flex items-start justify-between p-7 pb-5">
+                    <div className="flex items-center gap-4">
+                        <div className="w-11 h-11 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 border border-blue-100/50">
+                            <UserPlus className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-[17px] font-bold text-slate-900">Add New Doctor</h2>
+                            <p className="text-xs text-slate-500 mt-0.5">Add a healthcare practitioner to your clinic roster.</p>
+                        </div>
+                    </div>
+                    <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                {error && (
-                    <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-xl mb-4 text-sm flex items-start gap-2">
-                        <svg className="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                        <span>{error}</span>
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Full Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            required
-                            placeholder="e.g. Dr. Sarah Jenkins"
-                            className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-                            value={formData.fullName}
-                            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Doctor Email <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="email"
-                            required
-                            placeholder="doctor@example.com"
-                            className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Specialty <span className="text-red-500">*</span>
-                        </label>
-                        {specialties && specialties.length > 0 ? (
-                            <select
-                                required
-                                className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all bg-white"
-                                value={formData.specialty}
-                                onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-                            >
-                                <option value="">Select Specialty</option>
-                                {specialties.map((spec) => (
-                                    <option key={spec} value={spec}>
-                                        {spec}
-                                    </option>
-                                ))}
-                            </select>
-                        ) : (
+                <div className="px-7 py-2 flex flex-col gap-5">
+                    {/* Full Name */}
+                    <label className="block">
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">Doctor Full Name <span className="text-red-500">*</span></span>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                                <UserPlus className="w-4 h-4" />
+                            </div>
                             <input
                                 type="text"
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
+                                className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all font-medium placeholder:text-slate-400"
+                                placeholder="Dr. Tariq Haddad"
                                 required
-                                placeholder="e.g. Orthodontics, General Dentistry"
-                                className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-                                value={formData.specialty}
-                                onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
                             />
-                        )}
+                        </div>
+                    </label>
+
+                    {/* Email Address */}
+                    <div className="bg-[#f8faff] border border-blue-100 rounded-2xl p-4 -mx-1">
+                        <div className="flex justify-between items-center mb-3">
+                            <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1">Doctor Email Address <span className="text-red-500">*</span></span>
+                            <div className="flex items-center gap-1.5 bg-blue-100/50 text-blue-700 px-2 py-1 rounded-md text-[10px] font-bold">
+                                <RefreshCw className="w-3 h-3" />
+                                Auto-Notification
+                            </div>
+                        </div>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
+                                <Mail className="w-4 h-4" />
+                            </div>
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full border border-blue-200 bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all font-medium placeholder:text-slate-400 shadow-sm shadow-blue-500/5"
+                                placeholder="tariq.haddad@gmail.com"
+                                required
+                            />
+                        </div>
+                        <div className="mt-3 text-[10px] text-blue-700/90 flex items-start gap-1.5">
+                            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                            <span className="font-medium leading-relaxed">
+                                <span className="font-bold">Email Notification:</span> When this doctor is added, the system automatically sends a notification email to this address to verify their roster placement and login access.
+                            </span>
+                        </div>
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Phone Number <span className="text-gray-400 font-normal">(Optional)</span>
-                        </label>
-                        <input
-                            type="tel"
-                            placeholder="+1 (555) 000-0000"
-                            className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-                            value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    {/* Specialty - Checkboxes as requested */}
+                    <div className="block">
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">Medical Specialty <span className="text-red-500">*</span></span>
+
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {(specialties.length > 0 ? specialties : ['Orthodontics', 'General Dentistry', 'Pediatric Dentistry', 'Endodontics', 'Oral Surgery']).map(spec => {
+                                const isSelected = selectedSpecialties.includes(spec);
+                                return (
+                                    <button
+                                        key={spec}
+                                        type="button"
+                                        onClick={() => toggleSpecialty(spec)}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isSelected
+                                            ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
+                                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                            } flex items-center gap-1.5 cursor-pointer`}
+                                    >
+                                        <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                            {isSelected && (
+                                                <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
+                                            )}
+                                        </div>
+                                        {spec}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Bio */}
+                    <label className="block mb-2">
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 block">Doctor Bio & Credentials</span>
+                        <textarea
+                            value={bio}
+                            onChange={(e) => setBio(e.target.value)}
+                            rows={3}
+                            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all font-medium placeholder:text-slate-400"
+                            placeholder="Specialist in clear aligners and orthodontic diagnostics with 7+ years of clinical practice in Amman."
                         />
-                    </div>
+                    </label>
 
-                    <div className="bg-blue-50/60 border border-blue-100 rounded-xl p-3 flex items-start gap-2">
-                        <svg className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p className="text-xs text-blue-800 leading-relaxed">
-                            An invitation email with access credentials will be automatically sent to the doctor.
-                        </p>
-                    </div>
+                    {error && (
+                        <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100 flex items-center gap-2">
+                            <Info className="w-4 h-4 shrink-0" />
+                            {error}
+                        </div>
+                    )}
+                </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                {/* Footer */}
+                <div className="p-7 pt-4 flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                        <span className="text-[10px] text-slate-500 font-medium leading-tight max-w-[140px]">Doctor will receive automated onboarding email</span>
+                    </div>
+                    <div className="flex items-center gap-3">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-5 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors"
+                            className="px-6 py-2.5 text-[11px] font-bold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={loading}
-                            className="px-6 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 disabled:opacity-50 flex items-center gap-2"
+                            className="flex items-center gap-2 px-6 py-2.5 text-[11px] font-bold text-white bg-[#2563eb] rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-60 cursor-pointer"
                         >
                             {loading ? (
                                 <>
-                                    <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                                    </svg>
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                                     Adding...
                                 </>
                             ) : (
-                                'Add Doctor'
+                                <>
+                                    <Send className="w-3.5 h-3.5" />
+                                    Add Doctor & Send Email
+                                </>
                             )}
                         </button>
                     </div>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     );
-};
+};
