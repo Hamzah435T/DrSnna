@@ -13,7 +13,7 @@ import {
 } from "../../../api/clinicDoctorsApi";
 import { fetchClinicHours } from "../../../api/clinicProfileApi";
 import ModernAlertModal from "../../../components/ModernAlertModal";
-import { AddDoctorModal } from "../../../components/doctors/AddDoctorModal";
+import { AddDoctorModal } from "../../../components/doctors/AddDoctorModal.jsx";
 
 /**
  * ClinicDoctors – Doctor Management page

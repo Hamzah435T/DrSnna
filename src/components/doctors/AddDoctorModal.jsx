@@ -1,37 +1,30 @@
-import React, { useState } from 'react';
-import { UserPlus, Mail, Stethoscope, Info, Send, X, RefreshCw, Check } from 'lucide-react';
+import  { useState } from 'react';
+import { UserPlus, Mail,  Info, Send, X, RefreshCw, Check } from 'lucide-react';
 import { createDoctor } from '../../services/doctorService';
 
-interface AddDoctorModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    onSuccess: () => void;
-    specialties?: string[];
-}
-
-export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
-    isOpen,
-    onClose,
-    onSuccess,
-    specialties = []
-}) => {
+export const AddDoctorModal = ({
+                                   isOpen,
+                                   onClose,
+                                   onSuccess,
+                                   specialties = []
+                               }) => {
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
-    const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
+    const [selectedSpecialties, setSelectedSpecialties] = useState([]);
     const [bio, setBio] = useState('');
 
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState(null);
 
     if (!isOpen) return null;
 
-    const toggleSpecialty = (s: string) => {
+    const toggleSpecialty = (s) => {
         setSelectedSpecialties(prev =>
             prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]
         );
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
@@ -47,8 +40,6 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
                 fullName: fullName.trim(),
                 email: email.trim(),
                 specialty: selectedSpecialties.join(', '),
-                // Sending bio instead of phone to match UI. If backend rejects, we will fix later.
-                // @ts-ignore
                 bio: bio.trim(),
                 sendEmailNotification: true,
             });
@@ -61,7 +52,7 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
 
             onSuccess();
             onClose();
-        } catch (err: any) {
+        } catch (err) {
             setError(err.message || 'An error occurred while adding the doctor.');
         } finally {
             setLoading(false);
@@ -158,7 +149,7 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
                                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isSelected
                                             ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
                                             : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-                                            } flex items-center gap-1.5 cursor-pointer`}
+                                        } flex items-center gap-1.5 cursor-pointer`}
                                     >
                                         <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
                                             {isSelected && (
