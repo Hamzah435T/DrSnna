@@ -298,13 +298,14 @@ function AboutSection({ clinic, mergedHours }) {
 }
 
 function TimeSlotGrid({
-                          clinicId,
-                          doctorId,
-                          activeDates,
-                          selectedAppointment,
-                          onSelectAppointment,
-                          services = []
-                      }) {
+    clinicId,
+    doctorId,
+    activeDates,
+    selectedAppointment,
+    onSelectAppointment,
+    onProceedToBooking,
+    services = []
+}) {
     const [slotsByDate, setSlotsByDate] = useState({});
     const [loadingSlots, setLoadingSlots] = useState(true);
 
@@ -546,11 +547,10 @@ function TimeSlotGrid({
                                 <button
                                     key={treatment.id}
                                     type="button"
-                                    className={`cd-treatment-btn ${
-                                        selected
-                                            ? 'cd-treatment-selected'
-                                            : ''
-                                    }`}
+                                    className={`cd-treatment-btn ${selected
+                                        ? 'cd-treatment-selected'
+                                        : ''
+                                        }`}
                                     onClick={() =>
                                         handleTreatmentClick(treatment.id)
                                     }
@@ -645,11 +645,10 @@ function TimeSlotGrid({
                             <button
                                 key={dateStr}
                                 type="button"
-                                className={`cd-date-btn ${
-                                    isSelected
-                                        ? 'cd-date-selected'
-                                        : ''
-                                }`}
+                                className={`cd-date-btn ${isSelected
+                                    ? 'cd-date-selected'
+                                    : ''
+                                    }`}
                                 onClick={() => {
                                     setSelectedDate(date);
 
@@ -792,13 +791,12 @@ function TimeSlotGrid({
                                                         disabled={
                                                             !slot.available
                                                         }
-                                                        className={`cd-new-slot ${
-                                                            isSelected
-                                                                ? 'cd-new-slot-selected'
-                                                                : slot.available
-                                                                    ? 'cd-new-slot-available'
-                                                                    : 'cd-new-slot-booked'
-                                                        }`}
+                                                        className={`cd-new-slot ${isSelected
+                                                            ? 'cd-new-slot-selected'
+                                                            : slot.available
+                                                                ? 'cd-new-slot-available'
+                                                                : 'cd-new-slot-booked'
+                                                            }`}
                                                         onClick={() =>
                                                             handleSlotClick(
                                                                 slot
@@ -897,14 +895,14 @@ function TimeSlotGrid({
     );
 }
 function DoctorCard({
-                        doctor,
-                        clinicId,
-                        selectedAppointment,
-                        onSelectAppointment,
-                        isFavorited,
-                        onToggleFavorite,
-                        services = []
-                    }) {
+    doctor,
+    clinicId,
+    selectedAppointment,
+    onSelectAppointment,
+    isFavorited,
+    onToggleFavorite,
+    services = []
+}) {
     const navigate = useNavigate();
     const [showSlots, setShowSlots] = useState(false);
 
@@ -1105,7 +1103,7 @@ export default function ClinicDetails() {
                     const list = Array.isArray(favs) ? favs : (favs?.favorites || favs?.data || []);
                     setFavoritesList(list);
                 })
-                .catch(() => {});
+                .catch(() => { });
         }
     };
 

@@ -617,6 +617,12 @@
     box-shadow: 0 4px 10px rgba(0, 74, 173, .18);
 }
 
+.cd-date-selected:hover {
+    background: #003a8c !important;
+    border-color: #003a8c !important;
+    color: white !important;
+}
+
 .cd-date-top {
     font-size: 9px;
     font-weight: 700;
@@ -722,6 +728,12 @@
     border-color: #004aad;
     color: white;
     box-shadow: 0 3px 8px rgba(0, 74, 173, .2);
+}
+
+.cd-new-slot-selected:hover {
+    background: #003a8c !important;
+    border-color: #003a8c !important;
+    color: white !important;
 }
 
 .cd-new-slot-selected small {
