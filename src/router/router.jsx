@@ -6,11 +6,16 @@ import {
 import {
     login,
     registerPatient,
-    registerClinic, logout,
+    registerClinic,
+    logout,
 } from "../api/authApi";
 import { clearAuth, getAuth, saveAuth } from "../auth/authStorage";
 import { getRoleRedirect } from "../auth/roleRedirect";
-import { requireGuest, requireRole } from "../auth/routeGuards.js";
+import {
+    requireGuest,
+    requireRole,
+    requireInactiveAdmin,
+} from "../auth/routeGuards.js";
 import Login from "../pages/Login";
 import Register from "../pages/Register.jsx";
 import PatientHomePage from "../pages/PatientHomePage.jsx";
@@ -26,6 +31,7 @@ import Unauthorized from "../pages/Unauthorized.jsx";
 import ClinicDetails from "../pages/patient/ClinicDetails.jsx";
 import UserProfile from "../pages/patient/UserProfile.jsx";
 import BookAppointment from "../pages/patient/BookAppointment.jsx";
+import AdminChangePassword from "../pages/admin/AdminChangePassword.jsx";
 
 async function loginAction({ request }) {
     const formData = await request.formData();
@@ -40,6 +46,13 @@ async function loginAction({ request }) {
         });
 
         saveAuth(authData);
+
+        if (
+            authData.role === "ADMIN" &&
+            authData.isActive === false
+        ) {
+            return redirect("/admin/change-password");
+        }
 
         return redirect(
             getRoleRedirect(authData.role)
@@ -169,6 +182,11 @@ export const router = createBrowserRouter([
         element: <Register />,
         action: registerAction,
         loader: requireGuest,
+    },
+    {
+        path: "/admin/change-password",
+        element: <AdminChangePassword />,
+        loader: requireInactiveAdmin,
     },
     {
         path: "/admin",
