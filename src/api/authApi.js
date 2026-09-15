@@ -115,3 +115,38 @@ export async function logout(token) {
 
     return data;
 }
+
+export async function changeAdminPassword({
+                                              newPassword,
+                                              confirmPassword,
+                                              token,
+                                          }) {
+    const response = await fetch(
+        `${API_BASE_URL}/auth/change-password`,
+        {
+            method: "PUT",
+
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`,
+                "Accept-Language":
+                    localStorage.getItem("i18nextLng") || "en",
+            },
+
+            body: JSON.stringify({
+                newPassword,
+                confirmPassword,
+            }),
+        }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(
+            data.message || "Failed to change password"
+        );
+    }
+
+    return data;
+}
