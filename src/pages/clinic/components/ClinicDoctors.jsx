@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { UserPlus, Mail, Stethoscope, Info, Send, ChevronDown, RefreshCw } from 'lucide-react';
+import { useTranslation } from "react-i18next";
+import { UserPlus, Mail, Stethoscope, Info, Send, ChevronDown, RefreshCw, Check } from 'lucide-react';
 import {
     fetchDoctors,
     fetchSpecialties,
@@ -12,6 +13,7 @@ import {
     deleteDoctorScheduleDate,
 } from "../../../api/clinicDoctorsApi";
 import { fetchClinicHours } from "../../../api/clinicProfileApi";
+import { utcToLocalRecurring } from "../../../utils/timezone";
 import ModernAlertModal from "../../../components/ModernAlertModal";
 import { AddDoctorModal } from "../../../components/doctors/AddDoctorModal";
 
@@ -26,6 +28,7 @@ import { AddDoctorModal } from "../../../components/doctors/AddDoctorModal";
  *   • Activate / Deactivate toggle
  */
 export default function ClinicDoctors() {
+    const { t } = useTranslation();
     // ── State ────────────────────────────────────────────────────────────────
     const [doctors, setDoctors] = useState([]);
     const [specialties, setSpecialties] = useState([]);
@@ -72,14 +75,24 @@ export default function ClinicDoctors() {
     useEffect(() => {
         async function load() {
             try {
-                const [docs, specs, hours] = await Promise.all([
+                const [docs, specs, hoursData] = await Promise.all([
                     fetchDoctors(),
                     fetchSpecialties(),
                     fetchClinicHours(),
                 ]);
+
+                const localHours = hoursData.map(h => {
+                    if (!h.startTime || !h.endTime) return null;
+                    return {
+                        dayOfWeek: h.dayOfWeek,
+                        startTime: h.startTime.substring(0, 5),
+                        endTime: h.endTime.substring(0, 5)
+                    };
+                }).filter(Boolean);
+
                 setDoctors(docs);
                 setSpecialties(specs);
-                setClinicHours(hours);
+                setClinicHours(localHours);
             } catch (err) {
                 console.error("Failed to load doctors:", err);
             } finally {
@@ -120,11 +133,12 @@ export default function ClinicDoctors() {
         setProfileModal({ open: true, editingDoctor: doctor });
     }
 
-    async function handleProfileSave({ fullName, specialty, bio }) {
+    async function handleProfileSave({ fullName, email, specialty, bio }) {
         try {
             if (profileModal.editingDoctor) {
                 const updated = await updateDoctor(profileModal.editingDoctor.id, {
                     fullName,
+                    email,
                     specialty,
                     bio,
                 });
@@ -266,12 +280,10 @@ export default function ClinicDoctors() {
             <div className="flex items-start justify-between mb-8">
                 <div>
                     <h1 className="text-3xl lg:text-[2.2rem] font-bold text-gray-900 tracking-tight">
-                        Doctor Management
+                        {t('clinicDoctors.title')}
                     </h1>
                     <p className="text-sm text-gray-500 mt-1">
-                        Manage credentials, specialties, and active status for{" "}
-                        <span className="font-medium text-gray-700">{totalDoctors}</span>{" "}
-                        clinical professionals.
+                        {t('clinicDoctors.subtitle')}
                     </p>
                 </div>
                 <button
@@ -279,23 +291,23 @@ export default function ClinicDoctors() {
                     className="flex items-center gap-2 bg-blue-900 hover:bg-blue-800 text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg shadow-blue-900/20 transition-all duration-200 hover:shadow-xl hover:shadow-blue-900/30 cursor-pointer whitespace-nowrap"
                 >
                     <PlusIcon />
-                    Add New Doctor
+                    {t('clinicDoctors.addNewDoctor')}
                 </button>
             </div>
 
             {/* Doctor cards grid */}
             {loading ? (
                 <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
-                    Loading doctors…
+                    {t('clinicDoctors.loading')}
                 </div>
             ) : doctors.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-60 text-gray-400">
-                    <p className="text-sm">No doctors added yet.</p>
+                    <p className="text-sm">{t('clinicDoctors.noDoctors')}</p>
                     <button
                         onClick={openAddDoctor}
                         className="mt-3 text-blue-600 text-sm font-medium hover:underline cursor-pointer"
                     >
-                        + Add your first doctor
+                        {t('clinicDoctors.addFirst')}
                     </button>
                 </div>
             ) : (
@@ -354,8 +366,8 @@ export default function ClinicDoctors() {
             {/* ─── Delete Confirm Modal ─── */}
             {deleteModal.open && (
                 <ConfirmModal
-                    title="Delete Doctor"
-                    message={`Are you sure you want to delete ${deleteModal.doctor?.fullName}? This action cannot be undone.`}
+                    title={t('clinicDoctors.deleteModal.title')}
+                    message={t('clinicDoctors.deleteModal.message')}
                     onConfirm={confirmDelete}
                     onCancel={() => setDeleteModal({ open: false, doctor: null })}
                 />
@@ -380,6 +392,7 @@ export default function ClinicDoctors() {
 
 /** ─── Doctor Card ─── */
 function DoctorCard({ doctor, isMenuOpen, onToggleMenu, onEdit, onManageHours, onToggleStatus, onDelete }) {
+    const { t } = useTranslation();
     const menuRef = useRef(null);
 
     return (
@@ -423,24 +436,24 @@ function DoctorCard({ doctor, isMenuOpen, onToggleMenu, onEdit, onManageHours, o
                 <div className="absolute right-4 top-14 z-20 bg-white rounded-xl shadow-xl shadow-gray-200/80 border border-gray-100 py-1.5 min-w-[180px] animate-[fadeIn_0.15s_ease-out]">
                     <DropdownItem
                         icon={<EditIcon />}
-                        label="Edit Profile"
+                        label={t('clinicDoctors.actions.edit')}
                         onClick={onEdit}
                     />
                     <DropdownItem
                         icon={<ClockIcon />}
-                        label="Manage Working Hours"
+                        label={t('clinicDoctors.actions.manageHours')}
                         onClick={onManageHours}
                     />
                     <div className="mx-3 my-1 border-t border-gray-100" />
                     <DropdownItem
                         icon={doctor.isActive ? <DeactivateIcon /> : <ActivateIcon />}
-                        label={doctor.isActive ? "Deactivate" : "Activate"}
+                        label={doctor.isActive ? t('clinicDoctors.actions.deactivate') : t('clinicDoctors.actions.activate')}
                         onClick={onToggleStatus}
                         danger={doctor.isActive}
                     />
                     <DropdownItem
                         icon={<TrashIcon />}
-                        label="Delete"
+                        label={t('clinicDoctors.actions.delete')}
                         onClick={onDelete}
                         danger={true}
                     />
@@ -488,6 +501,7 @@ function DoctorAvatar({ doctor, size = 44 }) {
 
 /** ─── Status Badge ─── */
 function StatusBadge({ isActive }) {
+    const { t } = useTranslation();
     return (
         <span
             className={`
@@ -502,7 +516,7 @@ function StatusBadge({ isActive }) {
                 className={`w-2 h-2 rounded-full transition-colors duration-200 ${isActive ? "bg-emerald-500 shadow-sm shadow-emerald-500/50" : "bg-gray-400"
                     }`}
             />
-            {isActive ? "Active" : "Inactive"}
+            {isActive ? t('clinicDoctors.status.active') : t('clinicDoctors.status.inactive')}
         </span>
     );
 }
@@ -534,16 +548,16 @@ function DropdownItem({ icon, label, onClick, danger = false }) {
 /** ─── Profile Modal (Add / Edit Doctor) ─── */
 /** ─── Profile Modal (Add / Edit Doctor) ─── */
 function ProfileModal({ doctor, specialties, onSave, onClose }) {
+    const { t } = useTranslation();
     const isEdit = !!doctor?.fullName;
     const [fullName, setFullName] = useState(doctor?.fullName || "");
-    const [email, setEmail] = useState("");
+    const [email, setEmail] = useState(doctor?.email || "");
 
-    const [selectedSpecialty, setSelectedSpecialty] = useState(() => {
+    const [selectedSpecialties, setSelectedSpecialties] = useState(() => {
         if (doctor?.specialty) {
-            const arr = doctor.specialty.split(',').map(s => s.trim()).filter(Boolean);
-            return arr.length > 0 ? arr[0] : "";
+            return doctor.specialty.split(',').map(s => s.trim()).filter(Boolean);
         }
-        return "";
+        return [];
     });
 
     const [bio, setBio] = useState(doctor?.bio || "");
@@ -555,13 +569,13 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
         setError("");
 
         if (!fullName.trim()) return;
-        if (!selectedSpecialty.trim()) {
-            setError("Please select a specialty.");
+        if (selectedSpecialties.length === 0) {
+            setError(t('clinicDoctors.profileModal.selectSpecialty'));
             return;
         }
 
         setSaving(true);
-        await onSave({ fullName: fullName.trim(), email: email.trim(), specialty: selectedSpecialty, bio: bio.trim() });
+        await onSave({ fullName: fullName.trim(), email: email.trim(), specialty: selectedSpecialties.join(', '), bio: bio.trim() });
         setSaving(false);
     }
 
@@ -579,8 +593,8 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
                             <UserPlus className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-[17px] font-bold text-slate-900">{isEdit ? "Edit Doctor Profile" : "Add New Doctor"}</h2>
-                            <p className="text-xs text-slate-500 mt-0.5">Add a healthcare practitioner to your clinic roster.</p>
+                            <h2 className="text-[17px] font-bold text-slate-900">{isEdit ? t('clinicDoctors.profileModal.editTitle') : t('clinicDoctors.profileModal.addTitle')}</h2>
+                            <p className="text-xs text-slate-500 mt-0.5">{t('clinicDoctors.profileModal.subtitle')}</p>
                         </div>
                     </div>
                     <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1">
@@ -591,7 +605,7 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
                 <div className="px-7 py-2 flex flex-col gap-5">
                     {/* Full Name */}
                     <label className="block">
-                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">Doctor Full Name <span className="text-red-500">*</span></span>
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">{t('clinicDoctors.profileModal.fullName')} <span className="text-red-500">*</span></span>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
                                 <UserPlus className="w-4 h-4" />
@@ -608,13 +622,16 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
                     </label>
 
                     {/* Email Address */}
+                    {/* Email Address */}
                     <div className="block">
                         <div className="flex justify-between items-center mb-2">
-                            <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">Doctor Email Address <span className="text-red-500">*</span></span>
-                            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-[10px] font-bold">
-                                <RefreshCw className="w-3 h-3" />
-                                Auto-Notification
-                            </div>
+                            <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">{t('clinicDoctors.profileModal.email')} <span className="text-red-500">*</span></span>
+                            {!isEdit && (
+                                <div className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-[10px] font-bold">
+                                    <RefreshCw className="w-3 h-3" />
+                                    {t('clinicDoctors.profileModal.autoNotification')}
+                                </div>
+                            )}
                         </div>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-blue-500">
@@ -624,54 +641,57 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full border border-blue-200 bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all font-medium placeholder:text-slate-400"
+                                className="w-full border border-blue-200 bg-white rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium text-slate-900 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 placeholder:text-slate-400"
                                 placeholder="tariq.haddad@gmail.com"
                                 required
                             />
                         </div>
-                        <div className="mt-2 text-[10px] text-blue-700/90 flex items-start gap-1.5">
-                            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-                            <span className="font-medium leading-relaxed">
-                                <span className="font-bold">Email Notification:</span> When this doctor is added, the system automatically sends a notification email to this address to verify their roster placement and login access.
-                            </span>
+                        {!isEdit && (
+                            <div className="mt-2 text-[10px] text-blue-700/90 flex items-start gap-1.5">
+                                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                                <span className="font-medium leading-relaxed">
+                                    <span className="font-bold">{t('clinicDoctors.profileModal.emailNotice')}</span> {t('clinicDoctors.profileModal.emailNoticeDesc')}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Specialty - Checkboxes as requested */}
+                    <div className="block">
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">{t('clinicDoctors.profileModal.specialty')} <span className="text-red-500">*</span></span>
+
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {(specialties?.length > 0 ? specialties : ['Orthodontics', 'General Dentistry', 'Pediatric Dentistry', 'Endodontics', 'Oral Surgery']).map(spec => {
+                                const isSelected = selectedSpecialties.includes(spec);
+                                return (
+                                    <button
+                                        key={spec}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedSpecialties(prev =>
+                                                prev.includes(spec) ? prev.filter(x => x !== spec) : [...prev, spec]
+                                            );
+                                        }}
+                                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isSelected
+                                            ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
+                                            : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                            } flex items-center gap-1.5 cursor-pointer`}
+                                    >
+                                        <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                            {isSelected && (
+                                                <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
+                                            )}
+                                        </div>
+                                        {spec}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    {/* Specialty */}
-                    <label className="block">
-                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center gap-1">Medical Specialty <span className="text-red-500">*</span></span>
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                                <Stethoscope className="w-4 h-4" />
-                            </div>
-                            <select
-                                value={selectedSpecialty}
-                                onChange={(e) => setSelectedSpecialty(e.target.value)}
-                                className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all font-medium appearance-none bg-white"
-                                required
-                            >
-                                <option value="" disabled>Select a specialty...</option>
-                                {specialties?.length > 0 ? (
-                                    specialties.map(s => <option key={s} value={s}>{s}</option>)
-                                ) : (
-                                    <>
-                                        <option value="Orthodontics">Orthodontics</option>
-                                        <option value="General Dentistry">General Dentistry</option>
-                                        <option value="Pediatric Dentistry">Pediatric Dentistry</option>
-                                        <option value="Endodontics">Endodontics</option>
-                                        <option value="Oral Surgery">Oral Surgery</option>
-                                    </>
-                                )}
-                            </select>
-                            <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
-                                <ChevronDown className="w-4 h-4" />
-                            </div>
-                        </div>
-                    </label>
-
                     {/* Bio */}
                     <label className="block mb-2">
-                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 block">Doctor Bio & Credentials</span>
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-2 block">{t('clinicDoctors.profileModal.bio')}</span>
                         <textarea
                             value={bio}
                             onChange={(e) => setBio(e.target.value)}
@@ -693,7 +713,7 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
                 <div className="p-7 pt-4 flex items-center justify-between mt-2">
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                        <span className="text-[10px] text-slate-500 font-medium leading-tight max-w-[140px]">Doctor will receive automated onboarding email</span>
+                        <span className="text-[10px] text-slate-500 font-medium leading-tight max-w-[140px]">{t('clinicDoctors.profileModal.onboardingNote')}</span>
                     </div>
                     <div className="flex items-center gap-3">
                         <button
@@ -701,7 +721,7 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
                             onClick={onClose}
                             className="px-6 py-2.5 text-[11px] font-bold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                         >
-                            Cancel
+                            {t('clinicDoctors.profileModal.cancel')}
                         </button>
                         <button
                             type="submit"
@@ -709,7 +729,7 @@ function ProfileModal({ doctor, specialties, onSave, onClose }) {
                             className="flex items-center gap-2 px-6 py-2.5 text-[11px] font-bold text-white bg-[#2563eb] rounded-lg hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-60 cursor-pointer"
                         >
                             <Send className="w-3.5 h-3.5" />
-                            {saving ? "Saving..." : (isEdit ? "Save Changes" : "Add Doctor & Send Email")}
+                            {saving ? t('clinicDoctors.profileModal.saving') : (isEdit ? t('clinicDoctors.profileModal.saveChanges') : t('clinicDoctors.profileModal.addAndSend'))}
                         </button>
                     </div>
                 </div>
@@ -744,6 +764,7 @@ function generateTimeOptions(minTime, maxTime) {
 
 /** ─── Schedule / Working Hours Modal ─── */
 function ScheduleModal({ doctorName, schedule, clinicHours, onDayToggle, onTimeChange, onSave, onClose }) {
+    const { t } = useTranslation();
     return (
         <ModalBackdrop onClose={onClose}>
             <div
@@ -752,7 +773,7 @@ function ScheduleModal({ doctorName, schedule, clinicHours, onDayToggle, onTimeC
             >
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
-                    <h2 className="text-xl font-bold text-gray-900 tracking-tight">Manage Working Hours</h2>
+                    <h2 className="text-xl font-bold text-gray-900 tracking-tight">{t('clinicDoctors.scheduleModal.title')}</h2>
                     <button
                         onClick={onClose}
                         className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100 cursor-pointer"
@@ -783,11 +804,11 @@ function ScheduleModal({ doctorName, schedule, clinicHours, onDayToggle, onTimeC
                                 <div className="flex items-center justify-between mb-4">
                                     <span className={`text-base font-bold ${day.isActive ? 'text-gray-900' : 'text-gray-400'}`}>
                                         {day.dayLabel}
-                                        {isClinicClosed && <span className="ml-2 text-xs text-red-500 font-normal">(Clinic Closed)</span>}
+                                        {isClinicClosed && <span className="ml-2 text-xs text-red-500 font-normal">({t('clinicDoctors.scheduleModal.clinicClosed')})</span>}
                                     </span>
                                     <div className="flex items-center gap-3">
                                         <span className={`text-sm font-medium ${day.isActive ? 'text-gray-700' : 'text-gray-400'}`}>
-                                            {day.isActive ? 'Active' : 'Inactive'}
+                                            {day.isActive ? t('clinicDoctors.scheduleModal.active') : t('clinicDoctors.scheduleModal.inactive')}
                                         </span>
                                         <button
                                             type="button"
@@ -807,7 +828,7 @@ function ScheduleModal({ doctorName, schedule, clinicHours, onDayToggle, onTimeC
                                     {/* Start Time */}
                                     <div className="flex-1">
                                         <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
-                                            <ClockIconSmall /> Start Time
+                                            <ClockIconSmall /> {t('clinicDoctors.scheduleModal.startTime')}
                                         </label>
                                         <div className="relative">
                                             <select
@@ -816,7 +837,7 @@ function ScheduleModal({ doctorName, schedule, clinicHours, onDayToggle, onTimeC
                                                 onChange={(e) => onTimeChange(dayIndex, 'startTime', e.target.value)}
                                                 className={`w-full appearance-none rounded-lg border ${day.isActive ? 'border-gray-300 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer' : 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed'} px-3 py-2.5 text-sm transition-all outline-none`}
                                             >
-                                                {!day.startTime && <option value="" disabled>Select Time</option>}
+                                                {!day.startTime && <option value="" disabled>{t('clinicDoctors.scheduleModal.selectTime')}</option>}
                                                 {timeOptions.map(opt => (
                                                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                                                 ))}
@@ -827,7 +848,7 @@ function ScheduleModal({ doctorName, schedule, clinicHours, onDayToggle, onTimeC
                                     {/* End Time */}
                                     <div className="flex-1">
                                         <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
-                                            <ClockIconSmall /> End Time
+                                            <ClockIconSmall /> {t('clinicDoctors.scheduleModal.endTime')}
                                         </label>
                                         <div className="relative">
                                             <select
@@ -836,7 +857,7 @@ function ScheduleModal({ doctorName, schedule, clinicHours, onDayToggle, onTimeC
                                                 onChange={(e) => onTimeChange(dayIndex, 'endTime', e.target.value)}
                                                 className={`w-full appearance-none rounded-lg border ${day.isActive ? 'border-gray-300 text-gray-900 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer' : 'border-gray-200 text-gray-400 bg-gray-100 cursor-not-allowed'} px-3 py-2.5 text-sm transition-all outline-none`}
                                             >
-                                                {!day.endTime && <option value="" disabled>Select Time</option>}
+                                                {!day.endTime && <option value="" disabled>{t('clinicDoctors.scheduleModal.selectTime')}</option>}
                                                 {timeOptions.map(opt => (
                                                     <option key={opt.value} value={opt.value}>{opt.label}</option>
                                                 ))}
@@ -856,7 +877,7 @@ function ScheduleModal({ doctorName, schedule, clinicHours, onDayToggle, onTimeC
                         onClick={onSave}
                         className="px-6 py-2.5 text-sm font-semibold text-white bg-[#0f3460] rounded-lg hover:bg-[#1a4a85] transition-colors shadow-md cursor-pointer"
                     >
-                        Save Changes
+                        {t('clinicDoctors.scheduleModal.saveChanges')}
                     </button>
                 </div>
             </div>
@@ -875,6 +896,7 @@ function ClockIconSmall() {
 
 /** ─── Delete Confirm Modal ─── */
 function ConfirmModal({ title, message, onConfirm, onCancel }) {
+    const { t } = useTranslation();
     return (
         <ModalBackdrop onClose={onCancel}>
             <div
@@ -895,13 +917,13 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
                         onClick={onCancel}
                         className="px-5 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
                     >
-                        Cancel
+                        {t('clinicDoctors.deleteModal.cancel')}
                     </button>
                     <button
                         onClick={onConfirm}
                         className="px-5 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors shadow-md shadow-red-200 cursor-pointer"
                     >
-                        Delete
+                        {t('clinicDoctors.deleteModal.confirm')}
                     </button>
                 </div>
             </div>
@@ -914,10 +936,12 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
 function ModalBackdrop({ onClose, children }) {
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px] animate-[fadeIn_0.15s_ease-out]"
+            className="fixed inset-0 z-50 overflow-y-auto bg-black/30 backdrop-blur-[2px] animate-[fadeIn_0.15s_ease-out]"
             onClick={onClose}
         >
-            {children}
+            <div className="flex min-h-full items-center justify-center p-4">
+                {children}
+            </div>
         </div>
     );
 }

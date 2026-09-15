@@ -1,14 +1,20 @@
 import 'react';
 import { NavLink, useNavigate } from 'react-router';
-import { LayoutDashboard, UserRound, Calendar, Settings, HelpCircle, LogOut, Stethoscope, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, UserRound, Calendar, Settings, HelpCircle, LogOut, Stethoscope, ShieldCheck, Globe } from 'lucide-react';
 import { clearAuth } from '../auth/authStorage';
+import { useTranslation } from 'react-i18next';
 
 export default function ClinicSidebar() {
     const navigate = useNavigate();
+    const { t, i18n } = useTranslation();
 
     const handleLogout = () => {
         clearAuth();
         navigate('/login');
+    };
+
+    const toggleLanguage = () => {
+        i18n.changeLanguage(i18n.language === 'ar' ? 'en' : 'ar');
     };
 
     const navItems = [
@@ -29,7 +35,7 @@ export default function ClinicSidebar() {
                     </div>
                     <div>
                         <h1 className="font-bold text-gray-900 leading-none text-lg">Dr.Sna Dental</h1>
-                        <span className="text-[13px] text-gray-500 font-medium">Clinic Portal</span>
+                        <span className="text-[13px] text-gray-500 font-medium">{t('clinicSidebar.clinicPortal')}</span>
                     </div>
                 </div>
 
@@ -37,6 +43,7 @@ export default function ClinicSidebar() {
                 <nav className="space-y-1">
                     {navItems.map((item) => {
                         const Icon = item.icon;
+                        const translatedName = t(`clinicSidebar.${item.name.toLowerCase()}`);
                         return (
                             <NavLink
                                 key={item.name}
@@ -53,7 +60,7 @@ export default function ClinicSidebar() {
                                     <>
                                         <div className="flex items-center gap-3">
                                             <Icon className="w-5 h-5" />
-                                            <span>{item.name}</span>
+                                            <span>{translatedName}</span>
                                         </div>
                                         {item.badge && (
                                             <span
@@ -79,16 +86,25 @@ export default function ClinicSidebar() {
 
             {/* Footer Links */}
             <div className="border-t border-gray-100 pt-4 space-y-1">
+                <button 
+                    onClick={toggleLanguage}
+                    className="flex items-center justify-between px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-900 w-full rounded-xl transition-colors"
+                >
+                    <div className="flex items-center gap-3">
+                        <Globe className="w-5 h-5" />
+                        {i18n.language === 'ar' ? 'English' : 'العربية'}
+                    </div>
+                </button>
                 <button className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-900 w-full rounded-xl transition-colors">
                     <HelpCircle className="w-5 h-5" />
-                    Support
+                    {t('clinicSidebar.support')}
                 </button>
                 <button
                     onClick={handleLogout}
                     className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-red-600 w-full rounded-xl transition-colors"
                 >
                     <LogOut className="w-5 h-5" />
-                    Logout
+                    {t('clinicSidebar.logout')}
                 </button>
             </div>
         </aside>

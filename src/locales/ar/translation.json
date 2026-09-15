@@ -1,0 +1,329 @@
+{
+  "profileSettings": {
+    "title": "إعدادات ملف العيادة",
+    "description": "إدارة المعلومات العامة وتفاصيل الاتصال الخاصة بعيادتك.",
+    "saveSettings": "حفظ الإعدادات",
+    "cancel": "إلغاء",
+    "savedSuccessfully": "تم حفظ التغييرات بنجاح.",
+    "remove": "إزالة",
+    "unsavedChanges": {
+      "title": "تغييرات غير محفوظة",
+      "description": "لديك تغييرات غير محفوظة. هل أنت متأكد أنك تريد المغادرة؟ ستفقد تغييراتك.",
+      "stay": "البقاء في الصفحة",
+      "leave": "المغادرة على أي حال"
+    },
+    "clinicInfo": {
+      "title": "المعلومات العامة",
+      "clinicName": "اسم العيادة",
+      "checkingFee": "رسوم الكشف",
+      "currency": "دينار",
+      "description": "الوصف",
+      "descriptionPlaceholder": "صف بإيجاز مهمة عيادتك وتخصصاتها والجو العام...",
+      "characters": "أحرف"
+    },
+    "contactAndSocial": {
+      "title": "التواصل وحسابات التواصل الاجتماعي",
+      "phoneNumber": "رقم الهاتف",
+      "socialMedia": "حسابات التواصل الاجتماعي والروابط العامة",
+      "socialMediaPlaceholder": "أضف روابط انستغرام، فيسبوك، لينكدإن، موقع الويب أو ملفات تعريف أخرى",
+      "linkPlaceholder": "مثل: instagram.com/clinic أو https://facebook.com/clinic",
+      "addLink": "إضافة رابط +"
+    },
+    "locationDetails": {
+      "title": "تفاصيل الموقع",
+      "city": "المدينة",
+      "address": "العنوان",
+      "mapPreview": "معاينة الخريطة غير متاحة حتى يتم الحفظ"
+    },
+    "medicalSpecialties": {
+      "title": "التخصصات الطبية",
+      "addSpecialty": "إضافة تخصص +",
+      "addNewSpecialty": "إضافة تخصص جديد",
+      "specialtyName": "اسم التخصص",
+      "specialtyNamePlaceholder": "مثل: طب جذور الأسنان",
+      "duration": "المدة (بالدقائق)",
+      "durationHint": "يجب أن تكون المدة من مضاعفات العدد 5 (مثل 15، 30، 45، 60).",
+      "modifyDuration": "تعديل المدة",
+      "saveDuration": "حفظ المدة",
+      "delete": "حذف"
+    },
+    "clinicHours": {
+      "title": "ساعات عمل العيادة",
+      "closed": "مغلق",
+      "to": "إلى"
+    },
+    "days": {
+      "Sunday": "الأحد",
+      "Monday": "الإثنين",
+      "Tuesday": "الثلاثاء",
+      "Wednesday": "الأربعاء",
+      "Thursday": "الخميس",
+      "Friday": "الجمعة",
+      "Saturday": "السبت"
+    },
+    "cities": {
+      "AMMAN": "عمان",
+      "IRBID": "إربد",
+      "ZARQA": "الزرقاء",
+      "MAFRAQ": "المفرق",
+      "AJLOUN": "عجلون",
+      "JERASH": "جرش",
+      "MADABA": "مادبا",
+      "BALQA": "الصلت",
+      "KARAK": "الكرك",
+      "TAFILEH": "الطفيلة",
+      "MAAN": "معان",
+      "AQABA": "العقبة"
+    }
+  },
+  "clinicSidebar": {
+    "dashboard": "لوحة القيادة",
+    "doctors": "الأطباء",
+    "appointments": "المواعيد",
+    "insurances": "شركات التأمين",
+    "settings": "الإعدادات",
+    "support": "الدعم",
+    "logout": "تسجيل الخروج",
+    "clinicPortal": "بوابة العيادة"
+  },
+  "clinicDashboard": {
+    "welcome": "مرحباً بكم في عيادة د. سنا لطب الأسنان!",
+    "subtitle": "إليك ما يحدث في عيادتك اليوم، 24 أكتوبر.",
+    "totalPatients": "إجمالي المرضى",
+    "appointments": "المواعيد",
+    "today": "اليوم",
+    "monthlyRevenue": "الإيرادات الشهرية",
+    "clinicDoctors": "أطباء العيادة",
+    "dailySchedule": {
+      "title": "الجدول اليومي",
+      "subtitle": "المواعيد القادمة لهذا اليوم.",
+      "viewCalendar": "عرض التقويم كاملاً",
+      "columns": {
+        "time": "الوقت",
+        "patient": "المريض",
+        "treatment": "العلاج",
+        "doctor": "الطبيب",
+        "status": "الحالة"
+      },
+      "loadMore": "تحميل المزيد من المواعيد"
+    },
+    "recentActivity": {
+      "title": "النشاط الأخير",
+      "booking": {
+        "title": "حجز جديد للدكتور جنكينز",
+        "desc": "المريضة: إميلي كارتر • غداً، 2:30 مساءً",
+        "time": "منذ 10 دقائق"
+      },
+      "payment": {
+        "title": "تم استلام الدفعة: $450.00",
+        "desc": "الفاتورة #INV-2023-089 تم دفعها ببطاقة الائتمان.",
+        "time": "منذ 45 دقيقة"
+      },
+      "record": {
+        "title": "تم تحديث السجل الطبي",
+        "desc": "قام الدكتور تشين بتحديث المخطط البياني للمريض روبرت فوكس.",
+        "time": "منذ ساعتين"
+      },
+      "cancellation": {
+        "title": "إلغاء الموعد",
+        "desc": "قامت أماندا لي بإلغاء موعدها الساعة 1:00 مساءً.",
+        "time": "منذ 3 ساعات"
+      }
+    }
+  },
+  "clinicDoctors": {
+    "title": "أطباء العيادة",
+    "subtitle": "إدارة المتخصصين في الرعاية الصحية في عيادتك.",
+    "addNewDoctor": "إضافة طبيب جديد",
+    "table": {
+      "name": "الاسم",
+      "specialty": "التخصص",
+      "email": "البريد الإلكتروني",
+      "phone": "رقم الهاتف",
+      "status": "الحالة",
+      "actions": "الإجراءات"
+    },
+    "status": {
+      "active": "نشط",
+      "inactive": "غير نشط"
+    },
+    "actions": {
+      "edit": "تعديل",
+      "delete": "حذف",
+      "manageHours": "إدارة ساعات العمل",
+      "deactivate": "تعطيل",
+      "activate": "تفعيل"
+    },
+    "deleteModal": {
+      "title": "إزالة طبيب",
+      "message": "هل أنت متأكد أنك تريد إزالة هذا الطبيب من العيادة؟",
+      "confirm": "حذف",
+      "cancel": "إلغاء"
+    },
+    "profileModal": {
+      "editTitle": "تعديل ملف الطبيب",
+      "addTitle": "إضافة طبيب جديد",
+      "subtitle": "إضافة ممارس رعاية صحية إلى قائمة عيادتك.",
+      "fullName": "الاسم الكامل للطبيب",
+      "email": "البريد الإلكتروني للطبيب",
+      "autoNotification": "إشعار تلقائي",
+      "emailNotice": "إشعار البريد الإلكتروني:",
+      "emailNoticeDesc": "عند إضافة هذا الطبيب، يقوم النظام تلقائياً بإرسال بريد إشعار إلى هذا العنوان للتحقق من تسجيله ووصوله.",
+      "specialty": "التخصص الطبي",
+      "bio": "السيرة الذاتية والمؤهلات",
+      "selectSpecialty": "يرجى اختيار تخصص واحد على الأقل.",
+      "onboardingNote": "سيتلقى الطبيب بريد تسجيل تلقائي",
+      "cancel": "إلغاء",
+      "saving": "جارٍ الحفظ...",
+      "saveChanges": "حفظ التغييرات",
+      "addAndSend": "إضافة طبيب وإرسال البريد"
+    },
+    "scheduleModal": {
+      "title": "إدارة ساعات العمل",
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "clinicClosed": "العيادة مغلقة",
+      "startTime": "وقت البدء",
+      "endTime": "وقت الانتهاء",
+      "selectTime": "اختر الوقت",
+      "saveChanges": "حفظ التغييرات"
+    },
+    "loading": "جارٍ تحميل الأطباء…",
+    "noDoctors": "لم تتم إضافة أطباء بعد.",
+    "addFirst": "+ أضف أول طبيب لديك"
+  },
+  "clinicAppointments": {
+    "title": "مواعيد العيادة",
+    "subtitle": "إدارة حجوزات المرضى والجدول الزمني.",
+    "tabs": {
+      "all": "كل المواعيد",
+      "today": "اليوم",
+      "upcoming": "القادمة",
+      "past": "السابقة"
+    },
+    "table": {
+      "patientName": "اسم المريض",
+      "doctor": "الطبيب",
+      "dateTime": "التاريخ والوقت",
+      "service": "الخدمة",
+      "status": "الحالة",
+      "actions": "الإجراءات"
+    },
+    "status": {
+      "confirmed": "مؤكد",
+      "completed": "مكتمل",
+      "cancelled": "ملغي",
+      "pending": "قيد الانتظار"
+    },
+    "actions": {
+      "edit": "تعديل",
+      "cancel": "إلغاء",
+      "newAppointment": "موعد جديد",
+      "deleteSelected": "حذف المحدد"
+    },
+    "cancelModal": {
+      "title": "إلغاء الموعد",
+      "message": "هل أنت متأكد أنك تريد إلغاء هذا الموعد؟",
+      "confirm": "نعم، إلغاء الموعد",
+      "cancel": "لا، احتفظ به"
+    },
+    "deleteModal": {
+      "title": "حذف الموعد",
+      "cancel": "إلغاء",
+      "confirm": "حذف الموعد"
+    },
+    "newModal": {
+      "title": "موعد زيارة بدون حجز مسبق",
+      "selectDoctor": "اختر الطبيب",
+      "selectTreatment": "اختر العلاج والمدة",
+      "selectDate": "اختر التاريخ",
+      "selectTime": "اختر الوقت",
+      "selected": "محدد",
+      "available": "متاح",
+      "booked": "محجوز",
+      "noSlots": "لا توجد مواعيد متاحة لهذا التاريخ.",
+      "loading": "جارٍ التحميل...",
+      "slotsFree": "فترات متاحة",
+      "maxTreatments": "يمكن اختيار علاجين كحد أقصى.",
+      "loadingServices": "جارٍ تحميل الخدمات...",
+      "noTreatments": "لا توجد علاجات متاحة لهذا الطبيب.",
+      "cancel": "إلغاء",
+      "saving": "جارٍ الحفظ...",
+      "schedule": "حجز الموعد",
+      "slots": "فترات"
+    }
+  },
+  "clinicInsurances": {
+    "title": "شركات التأمين",
+    "subtitle": "إدارة شبكات التأمين المقبولة وتفاصيل التغطية",
+    "addInsurance": "إضافة تأمين",
+    "table": {
+      "network": "الشبكة",
+      "status": "الحالة",
+      "action": "الإجراء"
+    },
+    "status": {
+      "active": "نشط",
+      "inactive": "غير نشط"
+    },
+    "actions": {
+      "edit": "تعديل",
+      "remove": "إزالة"
+    },
+    "modal": {
+      "title": "تفاصيل التأمين",
+      "name": "اسم الشبكة",
+      "namePlaceholder": "مثال: نات هيلث",
+      "status": "الحالة",
+      "active": "نشط",
+      "inactive": "غير نشط",
+      "save": "حفظ شركة التأمين",
+      "cancel": "إلغاء",
+      "editTitle": "تعديل شركة التأمين",
+      "addTitle": "إضافة شركة تأمين",
+      "companyName": "اسم شركة التأمين",
+      "coverageTiers": "فئات / مستويات التغطية المقبولة",
+      "coveragePlaceholder": "الفئة أ، الفئة ب، VIP، الذهبي للشركات",
+      "companyPlaceholder": "شركة التأمين الأردنية (JIC)",
+      "copay": "نسبة الدفع المشترك للمريض (%)",
+      "copayPlaceholder": "مثال: 10",
+      "approvalPhone": "هاتف الموافقات",
+      "phonePlaceholder": "078xxxxxxx",
+      "portalUrl": "رابط بوابة المطالبات / الموافقة الإلكترونية (اختياري)",
+      "portalPlaceholder": "https://e-approval.jic.jo",
+      "instantPreApproval": "تفعيل الموافقة المسبقة الإلكترونية الفورية",
+      "instantPreApprovalDesc": "السماح بالتحقق الفوري من أهلية المريض أثناء حجز الموعد",
+      "update": "تحديث شركة التأمين"
+    },
+    "breadcrumb": {
+      "profile": "ملف العيادة",
+      "affiliations": "الانتماءات الشبكية"
+    },
+    "kpi": {
+      "activeProviders": "مزودون نشطون",
+      "companies": "شركة",
+      "verifiedClaims": "100% مطالبات موثقة",
+      "directBilling": "الفوترة المباشرة",
+      "enabled": "مفعّل",
+      "portalSynced": "البوابة الإلكترونية متزامنة",
+      "copayRate": "نسبة الدفع المشترك الافتراضية",
+      "basedOnTier": "بناءً على مستوى التغطية"
+    },
+    "partners": {
+      "title": "شركات التأمين المعتمدة",
+      "healthPartner": "شريك صحي",
+      "coverageTier": "مستوى التغطية:",
+      "copayDeductible": "الدفع المشترك / الخصم:",
+      "approvalHotline": "خط الموافقات:",
+      "directBilling": "الفوترة المباشرة:",
+      "instantPreApproval": "موافقة مسبقة فورية",
+      "onlinePortal": "بوابة إلكترونية",
+      "activeAgreement": "اتفاقية نشطة"
+    },
+    "addCard": {
+      "title": "إضافة شركة تأمين جديدة",
+      "subtitle": "ربط مزودي التأمين الطبي وتعيين الخطط المقبولة لعيادتك"
+    },
+    "search": "البحث عن مزود أو بوليصة..."
+  }
+}

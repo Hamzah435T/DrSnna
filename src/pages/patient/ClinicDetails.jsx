@@ -277,7 +277,21 @@ function AboutSection({ clinic, mergedHours }) {
                             </div>
                             <div className="cd-contact-detail">
                                 <span className="cd-contact-label">Social</span>
-                                <span className="cd-contact-value">{clinic.socialLinks}</span>
+                                <div className="cd-contact-value flex flex-col gap-1">
+                                    {(Array.isArray(clinic.socialLinks) ? clinic.socialLinks : [clinic.socialLinks])
+                                        .filter(link => link && link.trim() !== '')
+                                        .map((link, idx) => (
+                                            <a
+                                                key={idx}
+                                                href={link.startsWith('http') ? link : `https://${link}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:underline break-all"
+                                            >
+                                                {link}
+                                            </a>
+                                        ))}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -354,7 +368,7 @@ function TimeSlotGrid({
                     clinicId,
                     date: dateStr,
                     doctorId: resolvedDocId || undefined,
-                    serviceId: selectedServiceIds[0]
+                    serviceIds: selectedServiceIds
                 })
                     .then(res => {
                         const rawSlots = Array.isArray(res)
@@ -391,20 +405,14 @@ function TimeSlotGrid({
                                 ? `${rawTime}:00`
                                 : rawTime;
 
-                        const converted =
-                            utcToLocalSpecific(
-                                result.date,
-                                timeWithSec
-                            );
-
                         return {
-                            time: converted.localTime,
+                            time: timeWithSec.substring(0, 5),
                             rawTime,
                             available:
                                 typeof slot === 'object'
                                     ? slot.available !== false
                                     : true,
-                            date: converted.localDate,
+                            date: result.date,
                             originalUtcDate: result.date,
                             scheduleId:
                                 typeof slot === 'object'
@@ -426,9 +434,6 @@ function TimeSlotGrid({
         return () => { cancelled = true; };
     }, [clinicId, resolvedDocId, activeDates, selectedServiceIds]);
 
-    /*
-     * Select a treatment.
-     */
     const handleTreatmentClick = (serviceId) => {
         setSelectedServiceIds(prev => {
             if (prev.includes(serviceId)) {
@@ -441,6 +446,23 @@ function TimeSlotGrid({
             return [...prev, serviceId];
         });
     };
+
+    useEffect(() => {
+        if (selectedAppointment && selectedDate) {
+            const currentSlots = slotsByDate[formatDateForApi(selectedDate)] || [];
+            if (currentSlots.length > 0) {
+                const match = currentSlots.find(
+                    slot =>
+                        slot.time === selectedAppointment.time &&
+                        slot.originalUtcDate === selectedAppointment.date
+                );
+                
+                if (!match || !match.available) {
+                    onSelectAppointment(null);
+                }
+            }
+        }
+    }, [slotsByDate, selectedDate, selectedAppointment, onSelectAppointment]);
 
     /*
      * Select a time slot.
@@ -941,6 +963,16 @@ function DoctorCard({
         });
     };
 
+    const doctorSpecialties = (doctor.specialty || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+    const doctorServices = doctorSpecialties.length > 0
+        ? services.filter(service => {
+            const sName = (service.serviceName || service.name || '').toLowerCase();
+            return doctorSpecialties.includes(sName);
+        })
+        : services;
+
+    const finalServices = doctorServices.length > 0 ? doctorServices : services;
+
     return (
         <div className="cd-doctor-card cd-card" id={`doctor-card-${doctorId}`}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -1004,21 +1036,6 @@ function DoctorCard({
                         />
                     </button>
 
-                    <button
-                        className="cd-book-btn"
-                        onClick={handleBookClick}
-                        style={{
-                            padding: '12px 20px',
-                            fontSize: '16px',
-                            transition: 'all 0.3s ease',
-                            opacity: 1,
-                            cursor: 'pointer',
-                            boxShadow: isSelectedDoctor ? '0 0 15px 2px rgba(14, 165, 233, 0.4)' : 'none',
-                            transform: isSelectedDoctor ? 'scale(1.05)' : 'scale(1)'
-                        }}
-                    >
-                        Book Appointment <span className="cd-book-arrow">→</span>
-                    </button>
                 </div>
             </div>
 
@@ -1039,7 +1056,7 @@ function DoctorCard({
                     activeDates={activeDates}
                     selectedAppointment={selectedAppointment}
                     onSelectAppointment={onSelectAppointment}
-                    services={services}
+                    services={finalServices}
                     onProceedToBooking={handleProceedToBooking}
                 />
             )}

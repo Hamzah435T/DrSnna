@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import { fetchDoctors } from '../../api/clinicDoctorsApi';
 import { getClinicAppointments } from '../../api/clinicAppointmentsApi';
 import {
@@ -15,6 +16,7 @@ import {
 
 export default function ClinicOverview() {
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     const [stats, setStats] = useState({
         doctorsCount: 0, // Initial mock value
@@ -51,16 +53,16 @@ export default function ClinicOverview() {
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Welcome to Dr.Sna Dental!</h1>
+                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{t('clinicDashboard.welcome')}</h1>
                 <p className="text-gray-500 text-[15px] mt-1.5 font-medium">
-                    Here is what's happening at your clinic today, October 24th.
+                    {t('clinicDashboard.subtitle')}
                 </p>
             </div>
 
             {/* Top 4 KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
-                    title="TOTAL PATIENTS"
+                    title={t('clinicDashboard.totalPatients')}
                     value="1,248"
                     change="+12%"
                     changeColor={{ bg: 'bg-blue-50', text: 'text-blue-600' }}
@@ -69,16 +71,16 @@ export default function ClinicOverview() {
                     iconColor="text-blue-600"
                 />
                 <StatCard
-                    title="APPOINTMENTS"
+                    title={t('clinicDashboard.appointments')}
                     value={stats.todayAppointments.toString()}
-                    badge="Today"
+                    badge={t('clinicDashboard.today')}
                     icon={CalendarCheck}
                     iconBg="bg-purple-100"
                     iconColor="text-purple-600"
                     onClick={() => navigate('/clinic/appointments')}
                 />
                 <StatCard
-                    title="MONTHLY REVENUE"
+                    title={t('clinicDashboard.monthlyRevenue')}
                     value="$48.5k"
                     change="+5.2%"
                     changeColor={{ bg: 'bg-cyan-50', text: 'text-cyan-600' }}
@@ -87,7 +89,7 @@ export default function ClinicOverview() {
                     iconColor="text-gray-800"
                 />
                 <StatCard
-                    title="CLINIC DOCTORS"
+                    title={t('clinicDashboard.clinicDoctors')}
                     value={stats.doctorsCount.toString()}
                     icon={UserCheck}
                     iconBg="bg-cyan-100"
@@ -103,21 +105,21 @@ export default function ClinicOverview() {
                 <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] flex flex-col h-full">
                     <div className="flex justify-between items-start p-6 pb-4">
                         <div>
-                            <h2 className="text-[17px] font-bold text-gray-900">Daily Schedule</h2>
-                            <p className="text-sm text-gray-500 mt-0.5">Upcoming appointments for today.</p>
+                            <h2 className="text-[17px] font-bold text-gray-900">{t('clinicDashboard.dailySchedule.title')}</h2>
+                            <p className="text-sm text-gray-500 mt-0.5">{t('clinicDashboard.dailySchedule.subtitle')}</p>
                         </div>
-                        <button className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">View Full Calendar</button>
+                        <button className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">{t('clinicDashboard.dailySchedule.viewCalendar')}</button>
                     </div>
 
                     <div className="flex-1 overflow-x-auto px-6">
                         <table className="w-full text-left border-collapse min-w-[500px]">
                             <thead>
                                 <tr className="text-[11px] font-bold text-gray-400 tracking-wider border-b border-gray-100 uppercase">
-                                    <th className="pb-3 w-[15%]">Time</th>
-                                    <th className="pb-3 w-[25%]">Patient</th>
-                                    <th className="pb-3 w-[25%]">Treatment</th>
-                                    <th className="pb-3 w-[20%]">Doctor</th>
-                                    <th className="pb-3 text-right">Status</th>
+                                    <th className="pb-3 w-[15%]">{t('clinicDashboard.dailySchedule.columns.time')}</th>
+                                    <th className="pb-3 w-[25%]">{t('clinicDashboard.dailySchedule.columns.patient')}</th>
+                                    <th className="pb-3 w-[25%]">{t('clinicDashboard.dailySchedule.columns.treatment')}</th>
+                                    <th className="pb-3 w-[20%]">{t('clinicDashboard.dailySchedule.columns.doctor')}</th>
+                                    <th className="pb-3 text-right">{t('clinicDashboard.dailySchedule.columns.status')}</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
@@ -186,13 +188,13 @@ export default function ClinicOverview() {
                     </div>
 
                     <div className="bg-slate-50/50 rounded-b-2xl p-4 text-center border-t border-gray-100 mt-auto">
-                        <button className="text-sm font-semibold text-blue-700 hover:text-blue-800 transition-colors">Load More Appointments</button>
+                        <button className="text-sm font-semibold text-blue-700 hover:text-blue-800 transition-colors">{t('clinicDashboard.dailySchedule.loadMore')}</button>
                     </div>
                 </div>
 
                 {/* Recent Activity Timeline (1/3 width) */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-[0_2px_10px_-3px_rgba(6,81,237,0.05)] flex flex-col h-full">
-                    <h2 className="text-[17px] font-bold text-gray-900 mb-6">Recent Activity</h2>
+                    <h2 className="text-[17px] font-bold text-gray-900 mb-6">{t('clinicDashboard.recentActivity.title')}</h2>
 
                     <div className="relative pl-3 space-y-7 flex-1">
                         {/* Vertical Line */}
@@ -204,9 +206,9 @@ export default function ClinicOverview() {
                                 <CalendarDays className="w-3.5 h-3.5" />
                             </div>
                             <div className="flex flex-col mt-0.5">
-                                <p className="font-bold text-gray-900 text-sm">New booking for Dr. Jenkins</p>
-                                <p className="text-[12px] text-gray-500 mt-0.5">Patient: Emily Carter • Tomorrow, 2:30 PM</p>
-                                <span className="text-[11px] font-medium text-gray-400 mt-1.5">10 mins ago</span>
+                                <p className="font-bold text-gray-900 text-sm">{t('clinicDashboard.recentActivity.booking.title')}</p>
+                                <p className="text-[12px] text-gray-500 mt-0.5">{t('clinicDashboard.recentActivity.booking.desc')}</p>
+                                <span className="text-[11px] font-medium text-gray-400 mt-1.5">{t('clinicDashboard.recentActivity.booking.time')}</span>
                             </div>
                         </div>
 
@@ -216,9 +218,9 @@ export default function ClinicOverview() {
                                 <DollarSign className="w-3.5 h-3.5" />
                             </div>
                             <div className="flex flex-col mt-0.5">
-                                <p className="font-bold text-gray-900 text-sm">Payment received: $450.00</p>
-                                <p className="text-[12px] text-gray-500 mt-0.5">Invoice #INV-2023-089 paid by Credit Card.</p>
-                                <span className="text-[11px] font-medium text-gray-400 mt-1.5">45 mins ago</span>
+                                <p className="font-bold text-gray-900 text-sm">{t('clinicDashboard.recentActivity.payment.title')}</p>
+                                <p className="text-[12px] text-gray-500 mt-0.5">{t('clinicDashboard.recentActivity.payment.desc')}</p>
+                                <span className="text-[11px] font-medium text-gray-400 mt-1.5">{t('clinicDashboard.recentActivity.payment.time')}</span>
                             </div>
                         </div>
 
@@ -228,9 +230,9 @@ export default function ClinicOverview() {
                                 <FileText className="w-3.5 h-3.5" />
                             </div>
                             <div className="flex flex-col mt-0.5">
-                                <p className="font-bold text-gray-900 text-sm">Medical record updated</p>
-                                <p className="text-[12px] text-gray-500 leading-snug mt-0.5">Dr. Chen updated charting for patient<br />Robert Fox.</p>
-                                <span className="text-[11px] font-medium text-gray-400 mt-1.5">2 hours ago</span>
+                                <p className="font-bold text-gray-900 text-sm">{t('clinicDashboard.recentActivity.record.title')}</p>
+                                <p className="text-[12px] text-gray-500 leading-snug mt-0.5">{t('clinicDashboard.recentActivity.record.desc')}</p>
+                                <span className="text-[11px] font-medium text-gray-400 mt-1.5">{t('clinicDashboard.recentActivity.record.time')}</span>
                             </div>
                         </div>
 
@@ -240,9 +242,9 @@ export default function ClinicOverview() {
                                 <CalendarX className="w-3.5 h-3.5" />
                             </div>
                             <div className="flex flex-col mt-0.5">
-                                <p className="font-bold text-gray-900 text-sm">Cancellation</p>
-                                <p className="text-[12px] text-gray-500 leading-snug mt-0.5">Amanda Lee cancelled 1:00 PM<br />appointment.</p>
-                                <span className="text-[11px] font-medium text-gray-400 mt-1.5">3 hours ago</span>
+                                <p className="font-bold text-gray-900 text-sm">{t('clinicDashboard.recentActivity.cancellation.title')}</p>
+                                <p className="text-[12px] text-gray-500 leading-snug mt-0.5">{t('clinicDashboard.recentActivity.cancellation.desc')}</p>
+                                <span className="text-[11px] font-medium text-gray-400 mt-1.5">{t('clinicDashboard.recentActivity.cancellation.time')}</span>
                             </div>
                         </div>
                     </div>

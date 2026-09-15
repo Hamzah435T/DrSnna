@@ -5,7 +5,7 @@ const BASE_URL = "http://localhost:8080/api/clinic";
 function authHeaders() {
     return {
         Authorization: `Bearer ${getToken()}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json", "Accept-Language": localStorage.getItem("i18nextLng") || "en"
     };
 }
 
@@ -78,22 +78,50 @@ export async function fetchSpecialties() {
     return res.json();
 }
 
-/** Add a new specialty. */
-export async function addSpecialty(name) {
+/** Add a new specialty or associate an existing one. */
+export async function addSpecialty(name, durationMinutes = 60) {
     const res = await fetch(`${BASE_URL}/specialties`, {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, durationMinutes }),
     });
     if (!res.ok) throw new Error("Failed to add specialty");
     return res.json();
 }
 
-/** Delete a specialty. */
+/** Delete a specialty from the clinic. */
 export async function deleteSpecialty(name) {
     const res = await fetch(`${BASE_URL}/specialties/${encodeURIComponent(name)}`, {
         method: "DELETE",
         headers: authHeaders(),
     });
-    if (!res.ok) throw new Error("Failed to delete specialty");
+    if (!res.ok) throw new Error("Failed to remove specialty");
 }
+
+/** Permanently delete a custom specialty from the database. */
+export async function deleteSpecialtyPermanently(name) {
+    const res = await fetch(`${BASE_URL}/specialties/${encodeURIComponent(name)}/permanent`, {
+        method: "DELETE",
+        headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to delete specialty permanently");
+}
+
+/** Fetch all global specialties. */
+export async function fetchAllSpecialties() {
+    const res = await fetch(`${BASE_URL}/specialties/all`, { headers: authHeaders() });
+    if (!res.ok) throw new Error("Failed to fetch all specialties");
+    return res.json();
+}
+
+/** Update the duration of a specific specialty for the clinic. */
+export async function updateSpecialtyDuration(specialtyId, durationMinutes) {
+    const res = await fetch(`${BASE_URL}/specialties/${specialtyId}/duration`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify({ durationMinutes }),
+    });
+    if (!res.ok) throw new Error("Failed to update specialty duration");
+    return res.json();
+}
+

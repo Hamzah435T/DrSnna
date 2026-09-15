@@ -20,6 +20,7 @@ import PatientNavbar from '../../components/PatientNavbar';
 import { fetchClinicDetails, fetchAvailability, bookPatientAppointment } from '../../api/patientApi';
 import { getAuth } from '../../auth/authStorage';
 import ModernAlertModal from '../../components/ModernAlertModal';
+import { utcToLocalSpecific } from '../../utils/timezone';
 
 const DAY_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
 const DAY_SHORT = { MONDAY: 'Mon', TUESDAY: 'Tue', WEDNESDAY: 'Wed', THURSDAY: 'Thu', FRIDAY: 'Fri', SATURDAY: 'Sat', SUNDAY: 'Sun' };
@@ -129,7 +130,18 @@ export default function BookAppointment() {
         }
         return upcomingDays[0];
     });
-    const [selectedTimeSlot, setSelectedTimeSlot] = useState(stateData.selectedTime || '');
+    const [selectedTimeSlot, setSelectedTimeSlot] = useState(() => {
+        if (stateData.selectedTime) {
+            if (/^\d{2}:\d{2}$/.test(stateData.selectedTime)) {
+                const [h, m] = stateData.selectedTime.split(':').map(Number);
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                const hour = h % 12 || 12;
+                return `${String(hour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${ampm}`;
+            }
+            return stateData.selectedTime;
+        }
+        return '';
+    });
     const [availableSlots, setAvailableSlots] = useState([]);
     const [loadingSlots, setLoadingSlots] = useState(false);
 
@@ -238,7 +250,10 @@ export default function BookAppointment() {
     // Fetch availability slots strictly based on backend schedule
     useEffect(() => {
         const currentClinicId = clinic?.clinicId || clinic?.id || effectiveClinicId;
-        if (!currentClinicId) return;
+        if (!currentClinicId || selectedServiceIds.length === 0) {
+            setAvailableSlots([]);
+            return;
+        }
 
         let isMounted = true;
         setLoadingSlots(true);
@@ -246,14 +261,17 @@ export default function BookAppointment() {
         fetchAvailability({
             clinicId: currentClinicId,
             date: selectedDayObj.dateStr,
-            doctorId: selectedDoctorId || undefined
+            doctorId: selectedDoctorId || undefined,
+            serviceIds: selectedServiceIds
         })
             .then(slots => {
                 if (!isMounted) return;
                 if (slots && Array.isArray(slots) && slots.length > 0) {
                     const mapped = slots.map(s => {
                         const rawTime = s.time ? (s.time.length === 5 ? `${s.time}:00` : s.time) : '09:00:00';
+
                         const [h, m] = rawTime.split(':').map(Number);
+
                         const ampm = h >= 12 ? 'PM' : 'AM';
                         const hour = h % 12 || 12;
                         return {
@@ -263,6 +281,19 @@ export default function BookAppointment() {
                             scheduleId: s.scheduleId
                         };
                     });
+
+                    // Sort chronologically in local time
+                    mapped.sort((a, b) => {
+                        const [aH, aM] = a.time.split(/[: ]/);
+                        const [bH, bM] = b.time.split(/[: ]/);
+                        const aAmPm = a.time.includes('PM');
+                        const bAmPm = b.time.includes('PM');
+
+                        let aTotalMins = (parseInt(aH) % 12 + (aAmPm ? 12 : 0)) * 60 + parseInt(aM);
+                        let bTotalMins = (parseInt(bH) % 12 + (bAmPm ? 12 : 0)) * 60 + parseInt(bM);
+                        return aTotalMins - bTotalMins;
+                    });
+
                     setAvailableSlots(mapped);
                 } else {
                     setAvailableSlots([]);
@@ -278,7 +309,7 @@ export default function BookAppointment() {
         return () => {
             isMounted = false;
         };
-    }, [clinic?.clinicId, clinic?.id, effectiveClinicId, selectedDayObj, selectedDoctorId]);
+    }, [clinic?.clinicId, clinic?.id, effectiveClinicId, selectedDayObj, selectedDoctorId, selectedServiceIds]);
 
     // Handle Service Checkbox Toggle with a 2-Service Limit
     const handleToggleService = (serviceId) => {
@@ -299,6 +330,15 @@ export default function BookAppointment() {
             }
         });
     };
+
+    useEffect(() => {
+        if (selectedTimeSlot && availableSlots.length > 0) {
+            const match = availableSlots.find(s => s.time === selectedTimeSlot);
+            if (!match || !match.available) {
+                setSelectedTimeSlot('');
+            }
+        }
+    }, [availableSlots, selectedTimeSlot]);
 
     // Formatted clinic hours
     const displayHours = clinic?.workingHours || (clinic?.clinicHours ? mergeClinicHours(clinic.clinicHours) : '09:00 AM - 05:00 PM');
@@ -352,11 +392,21 @@ export default function BookAppointment() {
             return;
         }
 
-        if (!paymentMethod) {
+        if (paymentMethod === '') {
             setAlertConfig({
                 open: true,
                 title: 'Payment Method Required (Step 4)',
                 message: 'Please select your preferred payment method to confirm.',
+                type: 'warning'
+            });
+            return;
+        }
+
+        if (parseInt(age, 10) < 6) {
+            setAlertConfig({
+                open: true,
+                title: 'Invalid Patient Age',
+                message: 'The age entered is invalid. A patient must be at least 6 years old to book an appointment. Please correct the age input.',
                 type: 'warning'
             });
             return;
@@ -425,12 +475,12 @@ export default function BookAppointment() {
     };
 
 
-        if (clinicError && !clinic) {
-            return (
-                <div className="min-h-screen flex items-center justify-center">
-                    <h2>{clinicError}</h2>
-                </div>
-            );
+    if (clinicError && !clinic) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <h2>{clinicError}</h2>
+            </div>
+        );
 
 
     }
@@ -460,78 +510,67 @@ export default function BookAppointment() {
                     <div className="pt-8 pb-6 px-8 border-b border-slate-100 bg-white">
                         <div className="max-w-3xl mx-auto flex justify-between items-center relative z-10">
                             <div className="flex flex-col items-center relative z-10 w-1/4">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${
-                                    isStep1Complete
-                                        ? 'bg-blue-600 text-white'
-                                        : currentActiveStep === 1
-                                            ? 'bg-blue-600 text-white ring-4 ring-blue-100'
-                                            : 'bg-slate-100 text-slate-400'
-                                }`}>
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${isStep1Complete
+                                    ? 'bg-blue-600 text-white'
+                                    : currentActiveStep === 1
+                                        ? 'bg-blue-600 text-white ring-4 ring-blue-100'
+                                        : 'bg-slate-100 text-slate-400'
+                                    }`}>
                                     {isStep1Complete ? <Check className="w-4 h-4 stroke-[3]" /> : '1'}
                                 </div>
-                                <span className={`text-xs font-bold transition-colors ${
-                                    isStep1Complete || currentActiveStep === 1 ? 'text-blue-600' : 'text-slate-400'
-                                }`}>
+                                <span className={`text-xs font-bold transition-colors ${isStep1Complete || currentActiveStep === 1 ? 'text-blue-600' : 'text-slate-400'
+                                    }`}>
                                     Details
                                 </span>
-                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${
-                                    isStep1Complete ? 'bg-blue-600' : 'bg-slate-200'
-                                }`} />
+                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${isStep1Complete ? 'bg-blue-600' : 'bg-slate-200'
+                                    }`} />
                             </div>
 
                             <div className="flex flex-col items-center relative z-10 w-1/4">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${
-                                    isStep2Complete
-                                        ? 'bg-blue-600 text-white'
-                                        : currentActiveStep === 2
-                                            ? 'bg-blue-600 text-white ring-4 ring-blue-100'
-                                            : 'bg-slate-100 text-slate-400'
-                                }`}>
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${isStep2Complete
+                                    ? 'bg-blue-600 text-white'
+                                    : currentActiveStep === 2
+                                        ? 'bg-blue-600 text-white ring-4 ring-blue-100'
+                                        : 'bg-slate-100 text-slate-400'
+                                    }`}>
                                     {isStep2Complete ? <Check className="w-4 h-4 stroke-[3]" /> : '2'}
                                 </div>
-                                <span className={`text-xs font-bold transition-colors ${
-                                    isStep2Complete || currentActiveStep === 2 ? 'text-blue-600' : 'text-slate-400'
-                                }`}>
+                                <span className={`text-xs font-bold transition-colors ${isStep2Complete || currentActiveStep === 2 ? 'text-blue-600' : 'text-slate-400'
+                                    }`}>
                                     Services
                                 </span>
-                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${
-                                    isStep2Complete ? 'bg-blue-600' : 'bg-slate-200'
-                                }`} />
+                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${isStep2Complete ? 'bg-blue-600' : 'bg-slate-200'
+                                    }`} />
                             </div>
 
                             <div className="flex flex-col items-center relative z-10 w-1/4">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${
-                                    isStep3Complete
-                                        ? 'bg-blue-600 text-white'
-                                        : currentActiveStep === 3
-                                            ? 'bg-blue-600 text-white ring-4 ring-blue-100'
-                                            : 'bg-slate-100 text-slate-400'
-                                }`}>
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${isStep3Complete
+                                    ? 'bg-blue-600 text-white'
+                                    : currentActiveStep === 3
+                                        ? 'bg-blue-600 text-white ring-4 ring-blue-100'
+                                        : 'bg-slate-100 text-slate-400'
+                                    }`}>
                                     {isStep3Complete ? <Check className="w-4 h-4 stroke-[3]" /> : '3'}
                                 </div>
-                                <span className={`text-xs font-bold transition-colors ${
-                                    isStep3Complete || currentActiveStep === 3 ? 'text-blue-600' : 'text-slate-400'
-                                }`}>
+                                <span className={`text-xs font-bold transition-colors ${isStep3Complete || currentActiveStep === 3 ? 'text-blue-600' : 'text-slate-400'
+                                    }`}>
                                     Time
                                 </span>
-                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${
-                                    isStep3Complete ? 'bg-blue-600' : 'bg-slate-200'
-                                }`} />
+                                <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${isStep3Complete ? 'bg-blue-600' : 'bg-slate-200'
+                                    }`} />
                             </div>
 
                             <div className="flex flex-col items-center relative z-10 w-1/4">
-                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${
-                                    bookingSuccessData
-                                        ? 'bg-emerald-600 text-white'
-                                        : isStep4Complete || currentActiveStep === 4
-                                            ? 'bg-blue-600 text-white ring-4 ring-blue-100'
-                                            : 'bg-slate-100 text-slate-400'
-                                }`}>
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm mb-2 relative z-10 transition-all shadow-xs ${bookingSuccessData
+                                    ? 'bg-emerald-600 text-white'
+                                    : isStep4Complete || currentActiveStep === 4
+                                        ? 'bg-blue-600 text-white ring-4 ring-blue-100'
+                                        : 'bg-slate-100 text-slate-400'
+                                    }`}>
                                     {bookingSuccessData ? <Check className="w-4 h-4 stroke-[3]" /> : '4'}
                                 </div>
-                                <span className={`text-xs font-bold transition-colors ${
-                                    bookingSuccessData ? 'text-emerald-600' : isStep4Complete || currentActiveStep === 4 ? 'text-blue-600' : 'text-slate-400'
-                                }`}>
+                                <span className={`text-xs font-bold transition-colors ${bookingSuccessData ? 'text-emerald-600' : isStep4Complete || currentActiveStep === 4 ? 'text-blue-600' : 'text-slate-400'
+                                    }`}>
                                     Confirm
                                 </span>
                             </div>
@@ -682,13 +721,12 @@ export default function BookAppointment() {
                                                         return (
                                                             <label
                                                                 key={srv.id}
-                                                                className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all select-none shadow-2xs ${
-                                                                    isChecked
-                                                                        ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500 text-blue-900 font-bold cursor-pointer'
-                                                                        : isLimitReached
-                                                                            ? 'bg-slate-100/60 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
-                                                                            : 'bg-slate-50/60 border-slate-200 hover:bg-white hover:border-slate-300 text-slate-700 cursor-pointer'
-                                                                }`}
+                                                                className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all select-none shadow-2xs ${isChecked
+                                                                    ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500 text-blue-900 font-bold cursor-pointer'
+                                                                    : isLimitReached
+                                                                        ? 'bg-slate-100/60 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
+                                                                        : 'bg-slate-50/60 border-slate-200 hover:bg-white hover:border-slate-300 text-slate-700 cursor-pointer'
+                                                                    }`}
                                                             >
                                                                 <input
                                                                     type="checkbox"
@@ -742,11 +780,10 @@ export default function BookAppointment() {
                                                         setSelectedDayObj(day);
                                                         setSelectedTimeSlot('');
                                                     }}
-                                                    className={`shrink-0 w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer shadow-2xs ${
-                                                        isSelected
-                                                            ? 'border-2 border-blue-600 bg-blue-50 text-blue-700 font-bold scale-[1.03]'
-                                                            : 'border border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50 text-slate-700'
-                                                    }`}
+                                                    className={`shrink-0 w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer shadow-2xs ${isSelected
+                                                        ? 'border-2 border-blue-600 bg-blue-50 text-blue-700 font-bold scale-[1.03]'
+                                                        : 'border border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50 text-slate-700'
+                                                        }`}
                                                 >
                                                     <span className={`text-xs font-bold mb-0.5 ${isSelected ? 'text-blue-600' : 'text-slate-800'}`}>
                                                         {day.dayName}
@@ -773,21 +810,23 @@ export default function BookAppointment() {
                                     {availableSlots.length > 0 ? (
                                         Object.entries(
                                             availableSlots.reduce((groups, slot) => {
-                                                const hour = slot.time.split(":")[0];
+                                                const hourPart = slot.time.split(":")[0];
+                                                const amPmPart = slot.time.split(" ")[1];
+                                                const hourKey = `${hourPart} ${amPmPart}`;
 
-                                                if (!groups[hour]) groups[hour] = [];
+                                                if (!groups[hourKey]) groups[hourKey] = [];
 
-                                                groups[hour].push(slot);
+                                                groups[hourKey].push(slot);
 
                                                 return groups;
                                             }, {})
-                                        ).map(([hour, slots]) => (
-                                            <div key={hour} className="flex gap-6 mb-8">
+                                        ).map(([hourKey, slots]) => (
+                                            <div key={hourKey} className="flex gap-6 mb-8">
 
                                                 <div className="w-24 shrink-0">
 
                                                     <h3 className="font-bold text-slate-700">
-                                                        {hour}:00
+                                                        {hourKey}
                                                     </h3>
 
                                                     <p className="text-xs text-slate-500">
@@ -810,20 +849,18 @@ export default function BookAppointment() {
 
                                                             <button
                                                                 key={index}
+                                                                type="button"
                                                                 disabled={!isAvailable}
                                                                 onClick={() =>
                                                                     isAvailable &&
                                                                     setSelectedTimeSlot(slot.time)
                                                                 }
-                                                                className={`rounded-xl p-4 border transition
-
-                            ${
-                                                                    isSelected
-                                                                        ? "bg-blue-600 text-white border-blue-600"
-                                                                        : isAvailable
-                                                                            ? "bg-white hover:border-blue-500"
-                                                                            : "bg-slate-100 text-slate-400"
-                                                                }`}
+                                                                className={`rounded-xl p-4 border transition ${isSelected
+                                                                    ? "bg-blue-600 text-white border-blue-600 cursor-default shadow-md"
+                                                                    : isAvailable
+                                                                        ? "bg-white hover:border-blue-500 cursor-pointer hover:shadow-sm"
+                                                                        : "bg-slate-100 text-slate-400 cursor-not-allowed opacity-70"
+                                                                    }`}
                                                             >
 
                                                                 <div className="font-bold">

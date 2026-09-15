@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     ShieldCheck,
     ShieldPlus,
@@ -19,68 +20,7 @@ import {
     Check
 } from 'lucide-react';
 
-const INITIAL_INSURANCES = [
-    {
-        id: "1",
-        name: "GIG Jordan",
-        network: "Gulf Insurance Group",
-        code: "GIG",
-        badgeBg: "bg-blue-100",
-        badgeText: "text-blue-700",
-        coverageTier: "Gold, Silver, Platinum",
-        copay: "10% Standard",
-        phone: "0785609999",
-        directBillingType: "Instant Pre-approval",
-        portalUrl: "https://e-claims.gig.com.jo",
-        instantPreApproval: true,
-        status: "Active Agreement",
-    },
-    {
-        id: "2",
-        name: "MedNet Jordan",
-        network: "Munich Re TPA Network",
-        code: "MN",
-        badgeBg: "bg-emerald-100",
-        badgeText: "text-emerald-700",
-        coverageTier: "Class A, B, VIP",
-        copay: "15% Standard",
-        phone: "0795658800",
-        directBillingType: "Online Portal",
-        portalUrl: "https://portal.mednet.jo",
-        instantPreApproval: true,
-        status: "Active Agreement",
-    },
-    {
-        id: "3",
-        name: "NatHealth",
-        network: "National Health Insurance",
-        code: "NH",
-        badgeBg: "bg-indigo-100",
-        badgeText: "text-indigo-700",
-        coverageTier: "Prime, Premium",
-        copay: "20% Specialist",
-        phone: "0775682020",
-        directBillingType: "Direct Network",
-        portalUrl: "https://claims.nathealth.com.jo",
-        instantPreApproval: true,
-        status: "Active Agreement",
-    },
-    {
-        id: "4",
-        name: "Arab Orient Insurance",
-        network: "Al-Nisr Al-Arabi",
-        code: "AO",
-        badgeBg: "bg-teal-100",
-        badgeText: "text-teal-700",
-        coverageTier: "Corporate Elite, Standard",
-        copay: "10% Consultations",
-        phone: "0785654000",
-        directBillingType: "Synced Electronic",
-        portalUrl: "https://orient-insurance.jo",
-        instantPreApproval: true,
-        status: "Active Agreement",
-    },
-];
+import { fetchInsurances, addInsurance, updateInsurance, deleteInsurance } from '../../../api/clinicInsuranceApi';
 
 const COLOR_PALETTES = [
     { bg: "bg-blue-100", text: "text-blue-700" },
@@ -142,8 +82,26 @@ function validateCopayNumber(copayStr) {
 }
 
 export default function ClinicInsurances() {
-    const [insurances, setInsurances] = useState(INITIAL_INSURANCES);
+    const { t } = useTranslation();
+    const [insurances, setInsurances] = React.useState([]);
+    const [isLoading, setIsLoading] = React.useState(true);
     const [searchQuery, setSearchQuery] = useState("");
+
+    React.useEffect(() => {
+        loadInsurances();
+    }, []);
+
+    const loadInsurances = async () => {
+        try {
+            setIsLoading(true);
+            const data = await fetchInsurances();
+            setInsurances(data);
+        } catch (error) {
+            showToast("Error", "Failed to load insurances");
+        } finally {
+            setIsLoading(false);
+        }
+    };
     const [openMenuId, setOpenMenuId] = useState(null);
 
     // Modal State
@@ -202,7 +160,7 @@ export default function ClinicInsurances() {
         setErrors({});
     };
 
-    const handleSave = (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
         const validationErrors = {};
 
@@ -232,58 +190,70 @@ export default function ClinicInsurances() {
         const formattedCopay = `${copayCheck.value}% Standard`;
         const formattedPhone = phoneCheck.cleaned;
 
-        if (editingItem) {
-            // Update existing
-            const updated = insurances.map(item => {
-                if (item.id === editingItem.id) {
-                    return {
-                        ...item,
-                        name: formData.name.trim(),
-                        coverageTier: formData.coverageTier.trim(),
-                        copay: formattedCopay,
-                        phone: formattedPhone,
-                        portalUrl: formData.portalUrl.trim(),
-                        instantPreApproval: formData.instantPreApproval,
-                        directBillingType: formData.instantPreApproval ? "Instant Pre-approval" : (item.directBillingType || "Online Portal"),
-                    };
-                }
-                return item;
-            });
-            setInsurances(updated);
-            showToast("Insurance Updated", `"${formData.name}" has been successfully updated.`);
-        } else {
-            // Create new
-            const paletteIndex = insurances.length % COLOR_PALETTES.length;
-            const chosenPalette = COLOR_PALETTES[paletteIndex];
-            const newCode = generateCode(formData.name);
+        try {
+            if (editingItem) {
+                // Update existing
+                const updatePayload = {
+                    name: formData.name.trim(),
+                    coverageTier: formData.coverageTier.trim(),
+                    copay: formattedCopay,
+                    phone: formattedPhone,
+                    portalUrl: formData.portalUrl.trim(),
+                    instantPreApproval: formData.instantPreApproval,
+                    directBillingType: formData.instantPreApproval ? "Instant Pre-approval" : "Online Portal",
+                    network: editingItem.network,
+                    code: editingItem.code,
+                    badgeBg: editingItem.badgeBg,
+                    badgeText: editingItem.badgeText,
+                    status: editingItem.status,
+                };
 
-            const newItem = {
-                id: Date.now().toString(),
-                name: formData.name.trim(),
-                network: formData.name.includes("(") ? formData.name.split("(")[0].trim() : "Healthcare Network",
-                code: newCode,
-                badgeBg: chosenPalette.bg,
-                badgeText: chosenPalette.text,
-                coverageTier: formData.coverageTier.trim(),
-                copay: formattedCopay,
-                phone: formattedPhone,
-                portalUrl: formData.portalUrl.trim(),
-                instantPreApproval: formData.instantPreApproval,
-                directBillingType: formData.instantPreApproval ? "Instant Pre-approval" : "Online Portal",
-                status: "Active Agreement",
-            };
-            setInsurances(prev => [...prev, newItem]);
-            showToast("Insurance Added", `"${formData.name}" has been added successfully.`);
+                await updateInsurance(editingItem.id, updatePayload);
+                showToast("Insurance Updated", `"${formData.name}" has been successfully updated.`);
+            } else {
+                // Create new
+                const paletteIndex = insurances.length % COLOR_PALETTES.length;
+                const chosenPalette = COLOR_PALETTES[paletteIndex];
+                const newCode = generateCode(formData.name);
+
+                const newPayload = {
+                    name: formData.name.trim(),
+                    network: formData.name.includes("(") ? formData.name.split("(")[0].trim() : "Healthcare Network",
+                    code: newCode,
+                    badgeBg: chosenPalette.bg,
+                    badgeText: chosenPalette.text,
+                    coverageTier: formData.coverageTier.trim(),
+                    copay: formattedCopay,
+                    phone: formattedPhone,
+                    portalUrl: formData.portalUrl.trim(),
+                    instantPreApproval: formData.instantPreApproval,
+                    directBillingType: formData.instantPreApproval ? "Instant Pre-approval" : "Online Portal",
+                    status: "Active Agreement",
+                };
+
+                await addInsurance(newPayload);
+                showToast("Insurance Added", `"${formData.name}" has been added successfully.`);
+            }
+
+            // Reload the list
+            await loadInsurances();
+            handleCloseModal();
+        } catch (error) {
+            setErrors({ submit: error.message });
+            showToast("Error", error.message);
         }
-
-        handleCloseModal();
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         const itemToDelete = insurances.find(i => i.id === id);
-        setInsurances(prev => prev.filter(i => i.id !== id));
-        setOpenMenuId(null);
-        showToast("Insurance Removed", itemToDelete ? `"${itemToDelete.name}" was removed.` : "Insurance company removed.");
+        try {
+            await deleteInsurance(id);
+            await loadInsurances();
+            setOpenMenuId(null);
+            showToast("Insurance Removed", itemToDelete ? `"${itemToDelete.name}" was removed.` : "Insurance company removed.");
+        } catch (error) {
+            showToast("Error", "Failed to delete insurance");
+        }
     };
 
     // Filter partners based on search query
@@ -305,13 +275,16 @@ export default function ClinicInsurances() {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
                     <div className="flex items-center gap-2 text-[11px] font-bold tracking-wider text-blue-600 uppercase mb-1">
-                        <span>CLINIC PROFILE</span>
+                        <span>{t('clinicInsurances.breadcrumb.profile')}</span>
                         <span className="text-gray-300 font-normal">/</span>
-                        <span className="text-blue-500">NETWORK AFFILIATIONS</span>
+                        <span className="text-blue-500">{t('clinicInsurances.breadcrumb.affiliations')}</span>
                     </div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-                        Insurance Companies
+                    <h1 className="text-3xl lg:text-[2.2rem] font-bold text-gray-900 tracking-tight">
+                        {t('clinicInsurances.title')}
                     </h1>
+                    <p className="text-sm text-gray-500 mt-1">
+                        {t('clinicInsurances.subtitle')}
+                    </p>
                 </div>
 
                 {/* Right Header Actions */}
@@ -321,7 +294,7 @@ export default function ClinicInsurances() {
                         <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
                             type="text"
-                            placeholder="Search provider or policy..."
+                            placeholder={t('clinicInsurances.search')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full sm:w-64 pl-10 pr-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs transition-all placeholder:text-gray-400 text-gray-800"
@@ -332,10 +305,10 @@ export default function ClinicInsurances() {
                     <button
                         type="button"
                         onClick={() => handleOpenModal()}
-                        className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-sm rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
+                        className="flex items-center gap-2 bg-blue-900 hover:bg-blue-800 text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg shadow-blue-900/20 transition-all duration-200 hover:shadow-xl hover:shadow-blue-900/30 cursor-pointer whitespace-nowrap"
                     >
-                        <Plus className="w-4 h-4 stroke-[2.5]" />
-                        <span>Add Insurance Company</span>
+                        <Plus className="w-4 h-4" />
+                        <span>{t('clinicInsurances.addInsurance')}</span>
                     </button>
                 </div>
             </div>
@@ -346,14 +319,14 @@ export default function ClinicInsurances() {
                 <div className="bg-white rounded-2xl p-5 border border-gray-100/90 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs">
                     <div>
                         <p className="text-xs font-bold text-gray-400 tracking-wider uppercase">
-                            ACTIVE PROVIDERS
+                            {t('clinicInsurances.kpi.activeProviders')}
                         </p>
                         <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                            {insurances.length} Companies
+                            {insurances.length} {t('clinicInsurances.kpi.companies')}
                         </h3>
                         <div className="flex items-center gap-1.5 mt-2 text-emerald-600 text-xs font-semibold">
                             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                            <span>100% Verified Claims</span>
+                            <span>{t('clinicInsurances.kpi.verifiedClaims')}</span>
                         </div>
                     </div>
                     <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
@@ -365,13 +338,13 @@ export default function ClinicInsurances() {
                 <div className="bg-white rounded-2xl p-5 border border-gray-100/90 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs">
                     <div>
                         <p className="text-xs font-bold text-gray-400 tracking-wider uppercase">
-                            DIRECT BILLING
+                            {t('clinicInsurances.kpi.directBilling')}
                         </p>
                         <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                            Enabled
+                            {t('clinicInsurances.kpi.enabled')}
                         </h3>
                         <p className="text-xs font-medium text-gray-400 mt-2">
-                            Electronic portal synced
+                            {t('clinicInsurances.kpi.portalSynced')}
                         </p>
                     </div>
                     <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0">
@@ -383,13 +356,13 @@ export default function ClinicInsurances() {
                 <div className="bg-white rounded-2xl p-5 border border-gray-100/90 shadow-2xs flex items-center justify-between transition-all hover:shadow-xs">
                     <div>
                         <p className="text-xs font-bold text-gray-400 tracking-wider uppercase">
-                            DEFAULT CO-PAY RATE
+                            {t('clinicInsurances.kpi.copayRate')}
                         </p>
                         <h3 className="text-2xl font-bold text-gray-900 mt-1">
                             10% – 20%
                         </h3>
                         <p className="text-xs font-medium text-gray-400 mt-2">
-                            Based on tiered coverage
+                            {t('clinicInsurances.kpi.basedOnTier')}
                         </p>
                     </div>
                     <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
@@ -402,7 +375,7 @@ export default function ClinicInsurances() {
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <h2 className="text-lg font-bold text-gray-900">
-                        Accepted Insurance Partners
+                        {t('clinicInsurances.partners.title')}
                     </h2>
                 </div>
 
@@ -428,7 +401,7 @@ export default function ClinicInsurances() {
                                                 {partner.name}
                                             </h4>
                                             <p className="text-xs text-gray-400 font-medium">
-                                                {partner.network || "Health Partner"}
+                                                {partner.network || t('clinicInsurances.partners.healthPartner')}
                                             </p>
                                         </div>
                                     </div>
@@ -457,7 +430,7 @@ export default function ClinicInsurances() {
                                                     className="w-full text-left px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
                                                 >
                                                     <Edit3 className="w-3.5 h-3.5 text-gray-400" />
-                                                    <span>Edit</span>
+                                                    <span>{t('clinicInsurances.actions.edit')}</span>
                                                 </button>
                                                 <button
                                                     type="button"
@@ -468,7 +441,7 @@ export default function ClinicInsurances() {
                                                     className="w-full text-left px-3.5 py-2 text-xs font-medium text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                                                    <span>Remove</span>
+                                                    <span>{t('clinicInsurances.actions.remove')}</span>
                                                 </button>
                                             </div>
                                         )}
@@ -478,30 +451,30 @@ export default function ClinicInsurances() {
                                 {/* Key-Value Details */}
                                 <div className="space-y-2.5 text-xs text-gray-600 border-t border-gray-50 pt-3.5 mb-4">
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className="text-gray-400 font-medium shrink-0">Coverage Tier:</span>
+                                        <span className="text-gray-400 font-medium shrink-0">{t('clinicInsurances.partners.coverageTier')}</span>
                                         <span className="font-semibold text-gray-800 text-right truncate">
                                             {partner.coverageTier}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className="text-gray-400 font-medium shrink-0">Co-Pay / Deductible:</span>
+                                        <span className="text-gray-400 font-medium shrink-0">{t('clinicInsurances.partners.copayDeductible')}</span>
                                         <span className="font-semibold text-gray-800 text-right">
                                             {partner.copay}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className="text-gray-400 font-medium shrink-0">Approval Hotline:</span>
+                                        <span className="text-gray-400 font-medium shrink-0">{t('clinicInsurances.partners.approvalHotline')}</span>
                                         <span className="font-semibold text-gray-800 font-mono text-right">
                                             {partner.phone}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className="text-gray-400 font-medium shrink-0">Direct Billing:</span>
+                                        <span className="text-gray-400 font-medium shrink-0">{t('clinicInsurances.partners.directBilling')}</span>
                                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                             <span>
                                                 {partner.directBillingType ||
-                                                    (partner.instantPreApproval ? "Instant Pre-approval" : "Online Portal")}
+                                                    (partner.instantPreApproval ? t('clinicInsurances.partners.instantPreApproval') : t('clinicInsurances.partners.onlinePortal'))}
                                             </span>
                                         </span>
                                     </div>
@@ -512,7 +485,7 @@ export default function ClinicInsurances() {
                             <div className="flex items-center justify-between pt-3.5 border-t border-gray-100">
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50/90 text-emerald-600 border border-emerald-100/60">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                    <span>Active Agreement</span>
+                                    <span>{t('clinicInsurances.partners.activeAgreement')}</span>
                                 </span>
                                 <div className="flex items-center gap-1 text-xs font-semibold">
                                     <button
@@ -520,14 +493,14 @@ export default function ClinicInsurances() {
                                         onClick={() => handleOpenModal(partner)}
                                         className="text-gray-500 hover:text-gray-900 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                                     >
-                                        Edit
+                                        {t('clinicInsurances.actions.edit')}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => handleDelete(partner.id)}
                                         className="text-red-500 hover:text-red-700 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
                                     >
-                                        Remove
+                                        {t('clinicInsurances.actions.remove')}
                                     </button>
                                 </div>
                             </div>
@@ -544,10 +517,10 @@ export default function ClinicInsurances() {
                             <Plus className="w-6 h-6 stroke-[2]" />
                         </div>
                         <h4 className="font-bold text-gray-800 text-sm group-hover:text-blue-600 transition-colors">
-                            Add New Insurance Company
+                            {t('clinicInsurances.addCard.title')}
                         </h4>
                         <p className="text-xs text-gray-400 max-w-[220px] mt-1 font-medium leading-relaxed">
-                            Link medical insurance providers and set accepted plans for your clinic
+                            {t('clinicInsurances.addCard.subtitle')}
                         </p>
                     </button>
                 </div>
@@ -571,7 +544,7 @@ export default function ClinicInsurances() {
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-gray-900 text-lg leading-tight">
-                                        {editingItem ? "Edit Insurance Company" : "Add Insurance Company"}
+                                        {editingItem ? t('clinicInsurances.modal.editTitle') : t('clinicInsurances.modal.addTitle')}
                                     </h3>
                                 </div>
                             </div>
@@ -589,14 +562,14 @@ export default function ClinicInsurances() {
                             {/* Company Name */}
                             <div>
                                 <label className="flex items-center gap-1 text-xs font-bold text-gray-700 tracking-wider uppercase mb-1.5">
-                                    <span>INSURANCE COMPANY NAME</span>
+                                    <span>{t('clinicInsurances.modal.companyName')}</span>
                                     <span className="text-red-500 shrink-0">*</span>
                                 </label>
                                 <div className="relative">
                                     <Building2 className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                                     <input
                                         type="text"
-                                        placeholder="Jordan Insurance Company (JIC)"
+                                        placeholder={t('clinicInsurances.modal.companyPlaceholder')}
                                         value={formData.name}
                                         onChange={(e) => {
                                             setFormData({ ...formData, name: e.target.value });
@@ -614,14 +587,14 @@ export default function ClinicInsurances() {
                             {/* Accepted Coverage Tiers */}
                             <div>
                                 <label className="flex items-center gap-1 text-xs font-bold text-gray-700 tracking-wider uppercase mb-1.5">
-                                    <span>ACCEPTED COVERAGE TIERS / CLASSES</span>
+                                    <span>{t('clinicInsurances.modal.coverageTiers')}</span>
                                     <span className="text-red-500 shrink-0">*</span>
                                 </label>
                                 <div className="relative">
                                     <Layers className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                                     <input
                                         type="text"
-                                        placeholder="Class A, Class B, VIP, Corporate Gold"
+                                        placeholder={t('clinicInsurances.modal.coveragePlaceholder')}
                                         value={formData.coverageTier}
                                         onChange={(e) => {
                                             setFormData({ ...formData, coverageTier: e.target.value });
@@ -641,15 +614,16 @@ export default function ClinicInsurances() {
                                 {/* Co-Pay (%) - Number Only, Empty by Default */}
                                 <div>
                                     <label className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-gray-700 tracking-wider uppercase mb-1.5 h-5 whitespace-nowrap">
-                                        <span className="truncate">DEFAULT PATIENT CO-PAY (%)</span>
+                                        <span className="truncate">{t('clinicInsurances.modal.copay')}</span>
                                         <span className="text-red-500 shrink-0">*</span>
                                     </label>
+
                                     <div className="relative">
                                         <Percent className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                                         <input
                                             type="text"
                                             inputMode="numeric"
-                                            placeholder="e.g. 10"
+                                            placeholder={t('clinicInsurances.modal.copayPlaceholder')}
                                             value={formData.copay}
                                             onChange={(e) => {
                                                 const val = e.target.value.replace(/[^0-9.]/g, '');
@@ -668,7 +642,7 @@ export default function ClinicInsurances() {
                                 {/* Phone - Strictly Jordan 078 / 079 / 077 */}
                                 <div>
                                     <label className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-gray-700 tracking-wider uppercase mb-1.5 h-5 whitespace-nowrap">
-                                        <span className="truncate">Approval Phone</span>
+                                        <span className="truncate">{t('clinicInsurances.modal.approvalPhone')}</span>
                                         <span className="text-red-500 shrink-0">*</span>
                                     </label>
                                     <div className="relative">
@@ -696,7 +670,7 @@ export default function ClinicInsurances() {
                             {/* Claims Portal URL */}
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 tracking-wider uppercase mb-1.5">
-                                    CLAIMS PORTAL / E-APPROVAL URL (OPTIONAL)
+                                    {t('clinicInsurances.modal.portalUrl')}
                                 </label>
                                 <div className="relative">
                                     <Globe className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -718,10 +692,10 @@ export default function ClinicInsurances() {
                                     </div>
                                     <div>
                                         <p className="text-xs font-bold text-gray-900 leading-snug">
-                                            Enable Instant Electronic Pre-approval
+                                            {t('clinicInsurances.modal.instantPreApproval')}
                                         </p>
                                         <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">
-                                            Allow instant patient eligibility lookup during appointment booking
+                                            {t('clinicInsurances.modal.instantPreApprovalDesc')}
                                         </p>
                                     </div>
                                 </div>
@@ -750,7 +724,7 @@ export default function ClinicInsurances() {
                                     onClick={handleCloseModal}
                                     className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer"
                                 >
-                                    Cancel
+                                    {t('clinicInsurances.modal.cancel')}
                                 </button>
                                 <button
                                     type="submit"
@@ -758,7 +732,7 @@ export default function ClinicInsurances() {
                                 >
                                     <Check className="w-4 h-4 stroke-[2.5]" />
                                     <span>
-                                        {editingItem ? "Update Insurance Company" : "Save Insurance Company"}
+                                        {editingItem ? t('clinicInsurances.modal.update') : t('clinicInsurances.modal.save')}
                                     </span>
                                 </button>
                             </div>

@@ -1,7 +1,12 @@
 import React from 'react';
-import { Search, Bell, HelpCircle, User } from 'lucide-react';
+import { Search, Bell, HelpCircle, User, LogOut } from 'lucide-react';
+import { clearAuth } from '../../../auth/authStorage';
 
 export default function AdminNavbar() {
+    const handleLogout = () => {
+        clearAuth();
+        window.location.href = '/login';
+    };
     return (
         <nav className="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200">
             {/* Logo */}
@@ -21,21 +26,28 @@ export default function AdminNavbar() {
             {/* Search Bar */}
             <div className="hidden md:flex items-center relative w-[400px]">
                 <Search className="absolute left-3 w-4 h-4 text-slate-400" />
-                <input 
-                    type="text" 
-                    placeholder="Search clinics, doctors, transactions..." 
+                <input
+                    type="text"
+                    placeholder="Search clinics, doctors, transactions..."
                     className="w-full pl-9 pr-4 py-1.5 bg-slate-100 border-none rounded-full text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none placeholder:text-slate-500"
                 />
             </div>
 
             {/* Right Actions */}
             <div className="flex items-center gap-5">
+                <button
+                    onClick={handleLogout}
+                    className="flex items-center justify-center w-8 h-8 rounded-full text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    title="Logout"
+                >
+                    <LogOut className="w-4 h-4" />
+                </button>
                 <div className="relative cursor-pointer">
                     <Bell className="w-5 h-5 text-slate-600" />
                     <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
                 </div>
                 <HelpCircle className="w-5 h-5 text-slate-600 cursor-pointer" />
-                
+
                 <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
                     <div className="flex flex-col items-end">
                         <div className="flex items-center gap-1.5">

@@ -1,9 +1,10 @@
 import React from 'react';
 import { Wallet, PlusSquare, ClipboardList, Calendar } from 'lucide-react';
-import { MOCK_STATS } from '../mockAdminData';
 
-export default function AdminStatsRow({ onReviewClick }) {
-    const { commission, activeClinics, pendingApprovals, bookings } = MOCK_STATS;
+export default function AdminStatsRow({ onReviewClick, commission, activeClinics, pendingApprovals, bookings }) {
+    if (!commission || !activeClinics || pendingApprovals === undefined || !bookings) {
+        return <div className="h-32 mb-6 flex items-center justify-center text-slate-500">Loading metrics...</div>;
+    }
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-6">

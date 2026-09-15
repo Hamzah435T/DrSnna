@@ -5,7 +5,7 @@ export async function login({ email, password }) {
         method: "POST",
 
         headers: {
-            "Content-Type": "application/json",
+            "Content-Type": "application/json", "Accept-Language": localStorage.getItem("i18nextLng") || "en",
         },
 
         body: JSON.stringify({
@@ -36,7 +36,7 @@ export async function registerPatient({
             method: "POST",
 
             headers: {
-                "Content-Type": "application/json",
+                "Content-Type": "application/json", "Accept-Language": localStorage.getItem("i18nextLng") || "en",
             },
 
             body: JSON.stringify({
@@ -72,7 +72,7 @@ export async function registerClinic({
             method: "POST",
 
             headers: {
-                "Content-Type": "application/json",
+                "Content-Type": "application/json", "Accept-Language": localStorage.getItem("i18nextLng") || "en",
             },
 
             body: JSON.stringify({

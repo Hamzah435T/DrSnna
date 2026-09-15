@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download } from 'lucide-react';
 import AdminNavbar from './components/AdminNavbar';
 import AdminStatsRow from './components/AdminStatsRow';
@@ -8,13 +8,19 @@ import LiveExchangeRates from './components/LiveExchangeRates';
 import TopClinicsLeaderboard from './components/TopClinicsLeaderboard';
 import AdminAuditLog from './components/AdminAuditLog';
 import ClinicReviewModal from './components/ClinicReviewModal';
+import { getDashboardSummary } from '../../api/superAdminApi';
 
 export default function AdminDashboard() {
     const [reviewClinic, setReviewClinic] = useState(null);
+    const [dashboardData, setDashboardData] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    // This makes it easy for the API integration later. 
-    // Simply fetch your data in useEffects here, and pass it down as props if needed.
-    // Right now, the components internally import from mockAdminData.js
+    useEffect(() => {
+        getDashboardSummary()
+            .then(data => setDashboardData(data))
+            .catch(err => console.error("Failed to load dashboard data", err))
+            .finally(() => setLoading(false));
+    }, []);
 
     return (
         <div className="min-h-screen bg-[#f8fafc] font-sans">
@@ -44,10 +50,29 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* Top Stats Row */}
-                <AdminStatsRow onReviewClick={() => {
-                    // Just open the modal with the first pending clinic as an example for the top button
-                    import('./mockAdminData').then(m => setReviewClinic(m.MOCK_PENDING_CLINICS[0]));
-                }} />
+                <AdminStatsRow
+                    onReviewClick={() => {
+                        // Dummy click for now
+                    }}
+                    commission={{
+                        value: 48250.00,
+                        isPositive: true,
+                        change: 14.8
+                    }}
+                    activeClinics={dashboardData ? {
+                        value: dashboardData.activeClinics,
+                        newThisMonth: dashboardData.activeClinicsNewThisMonth
+                    } : {
+                        value: 142,
+                        newThisMonth: 6
+                    }}
+                    pendingApprovals={7}
+                    bookings={{
+                        value: 3840,
+                        isPositive: true,
+                        change: 9.2
+                    }}
+                />
 
                 {/* Main Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -60,7 +85,12 @@ export default function AdminDashboard() {
                     {/* Right Column (Side Content) */}
                     <div className="flex flex-col gap-5">
                         <LiveExchangeRates />
-                        <TopClinicsLeaderboard />
+                        <TopClinicsLeaderboard clinics={[
+                            { clinicId: 1, clinicName: 'SmileArt Studio', city: 'Amman', rating: '15% override rate', commission: 12450, currency: 'JOD' },
+                            { clinicId: 2, clinicName: 'Apex Dental Care', city: 'Irbid', rating: '12% standard rate', commission: 9820, currency: 'JOD' },
+                            { clinicId: 3, clinicName: 'Little Teeth Clinic', city: 'Amman', rating: '15% rate', commission: 7650, currency: 'JOD' },
+                            { clinicId: 4, clinicName: 'Aljubahia Dental', city: 'Amman', rating: '10% rate', commission: 6120, currency: 'JOD' }
+                        ]} />
                         <AdminAuditLog />
                     </div>
                 </div>

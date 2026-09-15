@@ -1,0 +1,329 @@
+{
+  "profileSettings": {
+    "title": "Clinic Profile Settings",
+    "description": "Manage your clinic's public information and contact details.",
+    "saveSettings": "Save Settings",
+    "cancel": "Cancel",
+    "savedSuccessfully": "Changes saved successfully.",
+    "remove": "Remove",
+    "unsavedChanges": {
+      "title": "Unsaved Changes",
+      "description": "You have unsaved changes. Are you sure you want to leave? Your changes will be lost.",
+      "stay": "Stay on Page",
+      "leave": "Leave Anyway"
+    },
+    "clinicInfo": {
+      "title": "General Information",
+      "clinicName": "Clinic Name",
+      "checkingFee": "Checking Fee",
+      "currency": "JOD",
+      "description": "Description",
+      "descriptionPlaceholder": "Briefly describe your clinic's mission, specialties, and atmosphere...",
+      "characters": "characters"
+    },
+    "contactAndSocial": {
+      "title": "Contact & Social",
+      "phoneNumber": "Phone Number",
+      "socialMedia": "Social Media & Public Links",
+      "socialMediaPlaceholder": "Add links to your Instagram, Facebook, LinkedIn, website, or other profiles",
+      "linkPlaceholder": "e.g. instagram.com/clinic or https://facebook.com/clinic",
+      "addLink": "Add Link +"
+    },
+    "locationDetails": {
+      "title": "Location Details",
+      "city": "City",
+      "address": "Address",
+      "mapPreview": "Map preview unavailable until saved"
+    },
+    "medicalSpecialties": {
+      "title": "Medical Specialties",
+      "addSpecialty": "Add Specialty +",
+      "addNewSpecialty": "Add New Specialty",
+      "specialtyName": "Specialty Name",
+      "specialtyNamePlaceholder": "e.g. Endodontics",
+      "duration": "Duration (min)",
+      "durationHint": "Duration must be a multiple of 5 (e.g. 15, 30, 45, 60).",
+      "modifyDuration": "Modify Duration",
+      "saveDuration": "Save Duration",
+      "delete": "Delete"
+    },
+    "clinicHours": {
+      "title": "Clinic Hours",
+      "closed": "Closed",
+      "to": "to"
+    },
+    "days": {
+      "Sunday": "Sunday",
+      "Monday": "Monday",
+      "Tuesday": "Tuesday",
+      "Wednesday": "Wednesday",
+      "Thursday": "Thursday",
+      "Friday": "Friday",
+      "Saturday": "Saturday"
+    },
+    "cities": {
+      "AMMAN": "Amman",
+      "IRBID": "Irbid",
+      "ZARQA": "Zarqa",
+      "MAFRAQ": "Mafraq",
+      "AJLOUN": "Ajloun",
+      "JERASH": "Jerash",
+      "MADABA": "Madaba",
+      "BALQA": "Salt",
+      "KARAK": "Karak",
+      "TAFILEH": "Tafilah",
+      "MAAN": "Maan",
+      "AQABA": "Aqaba"
+    }
+  },
+  "clinicSidebar": {
+    "dashboard": "Dashboard",
+    "doctors": "Doctors",
+    "appointments": "Appointments",
+    "insurances": "Insurances",
+    "settings": "Settings",
+    "support": "Support",
+    "logout": "Logout",
+    "clinicPortal": "Clinic Portal"
+  },
+  "clinicDashboard": {
+    "welcome": "Welcome to Dr.Sna Dental!",
+    "subtitle": "Here is what's happening at your clinic today, October 24th.",
+    "totalPatients": "TOTAL PATIENTS",
+    "appointments": "APPOINTMENTS",
+    "today": "Today",
+    "monthlyRevenue": "MONTHLY REVENUE",
+    "clinicDoctors": "CLINIC DOCTORS",
+    "dailySchedule": {
+      "title": "Daily Schedule",
+      "subtitle": "Upcoming appointments for today.",
+      "viewCalendar": "View Full Calendar",
+      "columns": {
+        "time": "Time",
+        "patient": "Patient",
+        "treatment": "Treatment",
+        "doctor": "Doctor",
+        "status": "Status"
+      },
+      "loadMore": "Load More Appointments"
+    },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "booking": {
+        "title": "New booking for Dr. Jenkins",
+        "desc": "Patient: Emily Carter • Tomorrow, 2:30 PM",
+        "time": "10 mins ago"
+      },
+      "payment": {
+        "title": "Payment received: $450.00",
+        "desc": "Invoice #INV-2023-089 paid by Credit Card.",
+        "time": "45 mins ago"
+      },
+      "record": {
+        "title": "Medical record updated",
+        "desc": "Dr. Chen updated charting for patient Robert Fox.",
+        "time": "2 hours ago"
+      },
+      "cancellation": {
+        "title": "Cancellation",
+        "desc": "Amanda Lee cancelled 1:00 PM appointment.",
+        "time": "3 hours ago"
+      }
+    }
+  },
+  "clinicDoctors": {
+    "title": "Clinic Doctors",
+    "subtitle": "Manage your clinic's healthcare professionals.",
+    "addNewDoctor": "Add New Doctor",
+    "table": {
+      "name": "Name",
+      "specialty": "Specialty",
+      "email": "Email",
+      "phone": "Phone",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "manageHours": "Manage Working Hours",
+      "deactivate": "Deactivate",
+      "activate": "Activate"
+    },
+    "deleteModal": {
+      "title": "Remove Doctor",
+      "message": "Are you sure you want to remove this doctor from the clinic?",
+      "confirm": "Delete",
+      "cancel": "Cancel"
+    },
+    "profileModal": {
+      "editTitle": "Edit Doctor Profile",
+      "addTitle": "Add New Doctor",
+      "subtitle": "Add a healthcare practitioner to your clinic roster.",
+      "fullName": "Doctor Full Name",
+      "email": "Doctor Email Address",
+      "autoNotification": "Auto-Notification",
+      "emailNotice": "Email Notification:",
+      "emailNoticeDesc": "When this doctor is added, the system automatically sends a notification email to this address to verify their roster placement and login access.",
+      "specialty": "Medical Specialty",
+      "bio": "Doctor Bio & Credentials",
+      "selectSpecialty": "Please select at least one specialty.",
+      "onboardingNote": "Doctor will receive automated onboarding email",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes",
+      "addAndSend": "Add Doctor & Send Email"
+    },
+    "scheduleModal": {
+      "title": "Manage Working Hours",
+      "active": "Active",
+      "inactive": "Inactive",
+      "clinicClosed": "Clinic Closed",
+      "startTime": "Start Time",
+      "endTime": "End Time",
+      "selectTime": "Select Time",
+      "saveChanges": "Save Changes"
+    },
+    "loading": "Loading doctors…",
+    "noDoctors": "No doctors added yet.",
+    "addFirst": "+ Add your first doctor"
+  },
+  "clinicAppointments": {
+    "title": "Clinic Appointments",
+    "subtitle": "Manage patient bookings and schedule.",
+    "tabs": {
+      "all": "All Appointments",
+      "today": "Today",
+      "upcoming": "Upcoming",
+      "past": "Past"
+    },
+    "table": {
+      "patientName": "Patient Name",
+      "doctor": "Doctor",
+      "dateTime": "Date & Time",
+      "service": "Service",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "pending": "Pending"
+    },
+    "actions": {
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "newAppointment": "New Appointment",
+      "deleteSelected": "Delete Selected"
+    },
+    "cancelModal": {
+      "title": "Cancel Appointment",
+      "message": "Are you sure you want to cancel this appointment?",
+      "confirm": "Yes, Cancel Appointment",
+      "cancel": "No, Keep It"
+    },
+    "deleteModal": {
+      "title": "Delete Appointment",
+      "cancel": "Cancel",
+      "confirm": "Delete Appointment"
+    },
+    "newModal": {
+      "title": "New Walk-In Appointment",
+      "selectDoctor": "Select Doctor",
+      "selectTreatment": "SELECT TREATMENT & DURATION",
+      "selectDate": "SELECT DATE",
+      "selectTime": "SELECT TIME",
+      "selected": "Selected",
+      "available": "Available",
+      "booked": "Booked",
+      "noSlots": "No available appointments for this date.",
+      "loading": "Loading...",
+      "slotsFree": "Slots Free",
+      "maxTreatments": "Maximum of 2 treatments can be selected.",
+      "loadingServices": "Loading services...",
+      "noTreatments": "No treatments available for this doctor.",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "schedule": "Schedule Appointment",
+      "slots": "slots"
+    }
+  },
+  "clinicInsurances": {
+    "title": "Insurance Providers",
+    "subtitle": "Manage accepted insurance networks and coverage details",
+    "addInsurance": "Add Insurance",
+    "table": {
+      "network": "Network",
+      "status": "Status",
+      "action": "Action"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "actions": {
+      "edit": "Edit",
+      "remove": "Remove"
+    },
+    "modal": {
+      "title": "Insurance Details",
+      "name": "Network Name",
+      "namePlaceholder": "e.g. NatHealth",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "save": "Save Insurance Company",
+      "cancel": "Cancel",
+      "editTitle": "Edit Insurance Company",
+      "addTitle": "Add Insurance Company",
+      "companyName": "INSURANCE COMPANY NAME",
+      "coverageTiers": "ACCEPTED COVERAGE TIERS / CLASSES",
+      "coveragePlaceholder": "Class A, Class B, VIP, Corporate Gold",
+      "companyPlaceholder": "Jordan Insurance Company (JIC)",
+      "copay": "DEFAULT PATIENT CO-PAY (%)",
+      "copayPlaceholder": "e.g. 10",
+      "approvalPhone": "Approval Phone",
+      "phonePlaceholder": "078xxxxxxx",
+      "portalUrl": "CLAIMS PORTAL / E-APPROVAL URL (OPTIONAL)",
+      "portalPlaceholder": "https://e-approval.jic.jo",
+      "instantPreApproval": "Enable Instant Electronic Pre-approval",
+      "instantPreApprovalDesc": "Allow instant patient eligibility lookup during appointment booking",
+      "update": "Update Insurance Company"
+    },
+    "breadcrumb": {
+      "profile": "CLINIC PROFILE",
+      "affiliations": "NETWORK AFFILIATIONS"
+    },
+    "kpi": {
+      "activeProviders": "ACTIVE PROVIDERS",
+      "companies": "Companies",
+      "verifiedClaims": "100% Verified Claims",
+      "directBilling": "DIRECT BILLING",
+      "enabled": "Enabled",
+      "portalSynced": "Electronic portal synced",
+      "copayRate": "DEFAULT CO-PAY RATE",
+      "basedOnTier": "Based on tiered coverage"
+    },
+    "partners": {
+      "title": "Accepted Insurance Partners",
+      "healthPartner": "Health Partner",
+      "coverageTier": "Coverage Tier:",
+      "copayDeductible": "Co-Pay / Deductible:",
+      "approvalHotline": "Approval Hotline:",
+      "directBilling": "Direct Billing:",
+      "instantPreApproval": "Instant Pre-approval",
+      "onlinePortal": "Online Portal",
+      "activeAgreement": "Active Agreement"
+    },
+    "addCard": {
+      "title": "Add New Insurance Company",
+      "subtitle": "Link medical insurance providers and set accepted plans for your clinic"
+    },
+    "search": "Search provider or policy..."
+  }
+}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserPlus, Mail, Stethoscope, Info, Send, X, RefreshCw, Check } from 'lucide-react';
-import { createDoctor } from '../../services/doctorService';
+import { addDoctor } from '../../api/clinicDoctorsApi';
 
 interface AddDoctorModalProps {
     isOpen: boolean;
@@ -43,12 +43,10 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
         }
 
         try {
-            await createDoctor({
+            await addDoctor({
                 fullName: fullName.trim(),
                 email: email.trim(),
                 specialty: selectedSpecialties.join(', '),
-                // Sending bio instead of phone to match UI. If backend rejects, we will fix later.
-                // @ts-ignore
                 bio: bio.trim(),
                 sendEmailNotification: true,
             });
@@ -70,14 +68,15 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-[fadeIn_0.15s_ease-out]"
+            className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-sm animate-[fadeIn_0.15s_ease-out]"
             onClick={onClose}
         >
-            <form
-                onSubmit={handleSubmit}
-                className="bg-white rounded-[16px] shadow-2xl w-full max-w-[540px] mx-4 overflow-hidden animate-[scaleIn_0.2s_ease-out]"
-                onClick={(e) => e.stopPropagation()}
-            >
+            <div className="flex min-h-full items-center justify-center p-4" onClick={onClose}>
+                <form
+                    onSubmit={handleSubmit}
+                    className="bg-white rounded-[16px] shadow-2xl w-full max-w-[540px] overflow-hidden animate-[scaleIn_0.2s_ease-out] my-8"
+                    onClick={(e) => e.stopPropagation()}
+                >
                 {/* Header */}
                 <div className="flex items-start justify-between p-7 pb-5">
                     <div className="flex items-center gap-4">
@@ -226,6 +225,7 @@ export const AddDoctorModal: React.FC<AddDoctorModalProps> = ({
                     </div>
                 </div>
             </form>
+            </div>
         </div>
     );
 };

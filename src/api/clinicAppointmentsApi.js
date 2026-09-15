@@ -5,7 +5,7 @@ const API_URL = 'http://localhost:8080/api/clinic/appointments';
 function authHeaders() {
     return {
         Authorization: `Bearer ${getToken()}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json", "Accept-Language": localStorage.getItem("i18nextLng") || "en"
     };
 }
 
@@ -68,3 +68,24 @@ export const deleteClinicAppointment = async (appointmentId) => {
         throw error;
     }
 };
+
+export const fetchClinicAvailability = async (date, doctorId, serviceIds = []) => {
+    try {
+        const params = new URLSearchParams();
+        params.append('date', date);
+        if (doctorId) params.append('doctorId', doctorId);
+        serviceIds.forEach(id => params.append('serviceId', id));
+
+        const CLINIC_API_URL = API_URL.replace('/appointments', '');
+        const response = await fetch(`${CLINIC_API_URL}/availability?${params.toString()}`, {
+            method: 'GET',
+            headers: authHeaders()
+        });
+        if (!response.ok) throw new Error("Failed to fetch clinic availability");
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching clinic availability:', error);
+        throw error;
+    }
+};
+

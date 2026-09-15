@@ -16,7 +16,7 @@ import { localToUtcSpecific, utcToLocalSpecific } from "../utils/timezone";
 function authHeaders() {
     return {
         Authorization: `Bearer ${getToken()}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json", "Accept-Language": localStorage.getItem("i18nextLng") || "en"
     };
 }
 
@@ -44,9 +44,7 @@ export async function fetchSpecialties() {
 }
 
 /** Add a new doctor profile. Returns the created doctor object. */
-export async function addDoctor({ fullName, specialty, bio }) {
-    // Generate dummy credentials since they aren't on the UI yet
-    const email = `${fullName.replace(/\s+/g, '').toLowerCase()}.${Date.now()}@drsna.dummy`;
+export async function addDoctor({ fullName, email, specialty, bio }) {
     const password = 'Password@123'; // Must meet backend validation
 
     const res = await fetch(`${BASE_URL}/doctors`, {
@@ -72,13 +70,12 @@ export async function addDoctor({ fullName, specialty, bio }) {
     return { ...created, id: created.doctorUserId };
 }
 
-/** Update an existing doctor's profile. Returns the updated doctor. */
-export async function updateDoctor(doctorId, { fullName, specialty, bio }) {
+export async function updateDoctor(doctorId, { fullName, email, specialty, bio }) {
     if (!doctorId) throw new Error("Doctor ID is missing. Please refresh the page.");
     const res = await fetch(`${BASE_URL}/doctors/${doctorId}`, {
         method: "PUT",
         headers: authHeaders(),
-        body: JSON.stringify({ fullName, specialty, bio }),
+        body: JSON.stringify({ fullName, email, specialty, bio }),
     });
     if (!res.ok) {
         const text = await res.text().catch(() => "");
@@ -131,15 +128,13 @@ export async function fetchDoctorSchedule(doctorId) {
         return `${dayNames[d.getDay()]}, ${monthNames[d.getMonth()]} ${d.getDate()}`;
     }
 
-    // Convert all backend UTC schedules to Local Time
+    // Use backend dates directly as local dates
     const localSavedSchedules = savedSchedules.map(s => {
         if (!s.startTime || !s.endTime) return null;
-        const start = utcToLocalSpecific(s.specificDate, s.startTime);
-        const end = utcToLocalSpecific(s.specificDate, s.endTime);
         return {
-            localDate: start.localDate,
-            startTime: start.localTime,
-            endTime: end.localTime
+            localDate: s.specificDate,
+            startTime: s.startTime.substring(0, 5),
+            endTime: s.endTime.substring(0, 5)
         };
     }).filter(Boolean);
 
@@ -168,18 +163,15 @@ export async function saveDoctorSchedule(doctorId, specificDateStr, startTime, e
     const startTimeFull = startTime.length === 5 ? startTime + ":00" : startTime;
     const endTimeFull = endTime.length === 5 ? endTime + ":00" : endTime;
 
-    const startConv = localToUtcSpecific(specificDateStr, startTimeFull);
-    const endConv = localToUtcSpecific(specificDateStr, endTimeFull);
-
     const res = await fetch(`${BASE_URL}/schedules/doctor-schedule`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
             doctorId,
             type: "DOCTOR_SHIFT",
-            specificDate: startConv.utcDate,
-            startTime: startConv.utcTime,
-            endTime: endConv.utcTime
+            specificDate: specificDateStr,
+            startTime: startTimeFull,
+            endTime: endTimeFull
         })
     });
     if (!res.ok) throw new Error("Failed to save schedule");
@@ -188,11 +180,11 @@ export async function saveDoctorSchedule(doctorId, specificDateStr, startTime, e
 
 /** Delete a specific day's shift schedule. */
 export async function deleteDoctorScheduleDate(doctorId, specificDateStr, startTime, endTime) {
-    // We need to delete the specific UTC date that this local date mapped to!
-    const startTimeFull = (startTime || "09:00").length === 5 ? (startTime || "09:00") + ":00" : (startTime || "09:00");
-    const startConv = localToUtcSpecific(specificDateStr, startTimeFull);
+    const params = new URLSearchParams();
+    params.append('doctorId', doctorId);
+    params.append('specificDate', specificDateStr);
 
-    const res = await fetch(`${BASE_URL}/schedules/doctor-schedule/${doctorId}/date/${startConv.utcDate}`, {
+    const res = await fetch(`${BASE_URL}/schedules/doctor-schedule?${params.toString()}`, {
         method: "DELETE",
         headers: authHeaders()
     });
@@ -219,3 +211,4 @@ export async function deleteDoctor(doctorId) {
         throw new Error(errMsg);
     }
 }
+
