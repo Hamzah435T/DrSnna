@@ -8,18 +8,36 @@ import LiveExchangeRates from './components/LiveExchangeRates';
 import TopClinicsLeaderboard from './components/TopClinicsLeaderboard';
 import AdminAuditLog from './components/AdminAuditLog';
 import ClinicReviewModal from './components/ClinicReviewModal';
-import { getDashboardSummary } from '../../api/superAdminApi';
+import { getDashboardSummary, getPendingClinics } from '../../api/superAdminApi';
 
 export default function AdminDashboard() {
     const [reviewClinic, setReviewClinic] = useState(null);
     const [dashboardData, setDashboardData] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    const [pendingClinics, setPendingClinics] = useState([]);
+
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const clinicsData = await getPendingClinics();
+            setPendingClinics(clinicsData);
+        } catch (err) {
+            console.error("Failed to load pending clinics", err);
+        }
+
+        try {
+            const summaryData = await getDashboardSummary();
+            setDashboardData(summaryData);
+        } catch (err) {
+            console.error("Failed to load dashboard data", err);
+        }
+
+        setLoading(false);
+    };
+
     useEffect(() => {
-        getDashboardSummary()
-            .then(data => setDashboardData(data))
-            .catch(err => console.error("Failed to load dashboard data", err))
-            .finally(() => setLoading(false));
+        loadData();
     }, []);
 
     return (
@@ -66,7 +84,7 @@ export default function AdminDashboard() {
                         value: 142,
                         newThisMonth: 6
                     }}
-                    pendingApprovals={7}
+                    pendingApprovals={pendingClinics?.length || 0}
                     bookings={{
                         value: 3840,
                         isPositive: true,
@@ -79,7 +97,10 @@ export default function AdminDashboard() {
                     {/* Left Column (Main Content) - Takes up 2 cols on lg screens */}
                     <div className="lg:col-span-2 flex flex-col gap-5">
                         <RevenueChart />
-                        <PendingClinicsTable onReviewClick={(clinic) => setReviewClinic(clinic)} />
+                        <PendingClinicsTable
+                            pendingClinics={pendingClinics}
+                            onReviewClick={(clinic) => setReviewClinic(clinic)}
+                        />
                     </div>
 
                     {/* Right Column (Side Content) */}
@@ -96,11 +117,11 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* Modal */}
             {reviewClinic && (
                 <ClinicReviewModal
-                    clinic={reviewClinic}
+                    clinicId={reviewClinic.clinicId}
                     onClose={() => setReviewClinic(null)}
+                    onRefresh={loadData}
                 />
             )}
         </div>
