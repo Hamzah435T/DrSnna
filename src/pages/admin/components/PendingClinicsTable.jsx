@@ -2,7 +2,7 @@ import React from 'react';
 import { UserCheck } from 'lucide-react';
 import { MOCK_PENDING_CLINICS } from '../mockAdminData';
 
-export default function PendingClinicsTable({ onReviewClick }) {
+export default function PendingClinicsTable({ pendingClinics, onReviewClick }) {
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -16,7 +16,7 @@ export default function PendingClinicsTable({ onReviewClick }) {
                     </div>
                 </div>
                 <div className="bg-slate-100 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600">
-                    7 submissions pending
+                    {pendingClinics?.length || 0} submissions pending
                 </div>
             </div>
 
@@ -34,52 +34,55 @@ export default function PendingClinicsTable({ onReviewClick }) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {MOCK_PENDING_CLINICS.map((clinic) => (
-                            <tr key={clinic.id} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="py-3 px-5">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-9 h-9 rounded-full ${clinic.initialsBg} ${clinic.initialsColor} font-bold text-xs flex items-center justify-center shrink-0`}>
-                                            {clinic.initials}
+                        {pendingClinics?.map((clinic) => {
+                            const initials = clinic.clinicName ? clinic.clinicName.substring(0, 2).toUpperCase() : 'CL';
+                            return (
+                                <tr key={clinic.clinicId} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="py-3 px-5">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
+                                                {initials}
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-slate-800 leading-tight">{clinic.clinicName}</span>
+                                                <span className="text-[10px] text-slate-400 font-medium">ID: {clinic.clinicId?.split('-')[0]}</span>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-bold text-slate-800 leading-tight">{clinic.name}</span>
-                                            <span className="text-[10px] text-slate-400 font-medium">ID: {clinic.id}</span>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="py-3 px-5 text-[13px] text-slate-600 font-medium">
-                                    {clinic.city}
-                                </td>
-                                <td className="py-3 px-5">
-                                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-md">
-                                        {clinic.branches} branch{clinic.branches > 1 ? 'es' : ''}
-                                    </span>
-                                </td>
-                                <td className="py-3 px-5 text-[13px] text-slate-600 font-medium">
-                                    {clinic.doctors} doctors
-                                </td>
-                                <td className="py-3 px-5">
-                                    <span className="text-xs font-bold text-teal-700">{clinic.currency}</span>
-                                </td>
-                                <td className="py-3 px-5 text-[11px] text-slate-500 font-medium whitespace-nowrap">
-                                    {clinic.submitted}
-                                </td>
-                                <td className="py-3 px-5 text-right">
-                                    <button 
-                                        onClick={() => onReviewClick(clinic)}
-                                        className="px-4 py-1.5 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-lg transition-colors"
-                                    >
-                                        Review
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
+                                    </td>
+                                    <td className="py-3 px-5 text-[13px] text-slate-600 font-medium">
+                                        {clinic.city}
+                                    </td>
+                                    <td className="py-3 px-5">
+                                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold rounded-md">
+                                            1 branch
+                                        </span>
+                                    </td>
+                                    <td className="py-3 px-5 text-[13px] text-slate-600 font-medium">
+                                        0 doctors
+                                    </td>
+                                    <td className="py-3 px-5">
+                                        <span className="text-xs font-bold text-teal-700">JOD</span>
+                                    </td>
+                                    <td className="py-3 px-5 text-[11px] text-slate-500 font-medium whitespace-nowrap">
+                                        Just now
+                                    </td>
+                                    <td className="py-3 px-5 text-right">
+                                        <button
+                                            onClick={() => onReviewClick(clinic)}
+                                            className="px-4 py-1.5 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-lg transition-colors"
+                                        >
+                                            Review
+                                        </button>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
 
             <div className="p-4 bg-slate-50 flex items-center justify-between border-t border-slate-100">
-                <span className="text-[11px] font-medium text-slate-500">Showing 4 of 7 pending verification items</span>
+                <span className="text-[11px] font-medium text-slate-500">Showing {pendingClinics?.length || 0} of {pendingClinics?.length || 0} pending verification items</span>
                 <div className="flex items-center gap-1">
                     <button className="px-3 py-1 text-xs font-semibold text-slate-500 hover:text-slate-800">Previous</button>
                     <button className="w-6 h-6 flex items-center justify-center rounded bg-blue-700 text-white text-xs font-bold">1</button>

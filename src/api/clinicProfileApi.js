@@ -40,6 +40,30 @@ export async function updateClinicProfile(data) {
     return res.json();
 }
 
+/** Resubmit rejected clinic application. */
+export async function resubmitApplication(data) {
+    const res = await fetch(`${BASE_URL}/resubmit`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        let errMsg = "Failed to resubmit application";
+        try {
+            const errData = JSON.parse(text);
+            errMsg = errData.message || errMsg;
+            if (errData.validationErrors && errData.validationErrors.length > 0) {
+                errMsg += ": " + errData.validationErrors.join(", ");
+            }
+        } catch {
+            errMsg += ` (Status ${res.status}): ${text.substring(0, 100)}`;
+        }
+        throw new Error(errMsg);
+    }
+    return res.json();
+}
+
 /** Fetch clinic hours from the schedule endpoint. */
 export async function fetchClinicHours() {
     const res = await fetch(`${BASE_URL}/schedules/clinic-hours`, { headers: authHeaders() });

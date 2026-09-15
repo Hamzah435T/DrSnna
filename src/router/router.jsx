@@ -21,6 +21,7 @@ import ClinicProfileSettings from "../pages/clinic/ClinicProfileSettings.jsx";
 import ClinicAppointments from "../pages/clinic/components/ClinicAppointments.jsx";
 import ClinicDoctors from "../pages/clinic/components/ClinicDoctors.jsx";
 import ClinicInsurances from "../pages/clinic/components/ClinicInsurances.jsx";
+import ResubmitApplication from "../pages/clinic/components/ResubmitApplication.jsx";
 import DoctorDashboard from "../pages/doctor/DoctorDashboard.jsx";
 import Unauthorized from "../pages/Unauthorized.jsx";
 import ClinicDetails from "../pages/patient/ClinicDetails.jsx";
@@ -203,6 +204,10 @@ export const router = createBrowserRouter([
             {
                 path: "settings",
                 element: <ClinicProfileSettings />,
+            },
+            {
+                path: "resubmit",
+                element: <ResubmitApplication />,
             },
         ],
     },

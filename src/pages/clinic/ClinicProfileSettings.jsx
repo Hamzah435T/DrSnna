@@ -1,7 +1,7 @@
 // src/pages/clinic/ClinicProfileSettings.jsx
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, Form, useBlocker } from "react-router";
+import { Link, Form, useBlocker, useOutletContext } from "react-router";
 import * as api from "../../api/clinicProfileApi";
 
 import { localToUtcRecurring, utcToLocalRecurring } from "../../utils/timezone";
@@ -425,6 +425,8 @@ export default function ClinicProfileSettings() {
     const [saved, setSaved] = useState(false);
     const [specialtyModal, setSpecialtyModal] = useState({ open: false, name: "", duration: 60 });
     const [deletingSpecialty, setDeletingSpecialty] = useState(null);
+    const context = useOutletContext();
+    const isRejected = context?.profile?.applicationStatus === 'REJECTED';
 
     // New states for modified specialty behavior
     const [allAvailableSpecialties, setAllAvailableSpecialties] = useState([...STATIC_SPECIALTIES]);
@@ -758,6 +760,12 @@ export default function ClinicProfileSettings() {
 
             setIsDirty(false);
             setSaved(true);
+            
+            if (isRejected) {
+                window.location.href = '/clinic';
+                return;
+            }
+            
             await loadData();
         } catch (err) {
             setError(err.message);
