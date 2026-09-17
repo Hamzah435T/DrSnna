@@ -250,7 +250,7 @@ export default function BookAppointment() {
     // Fetch availability slots strictly based on backend schedule
     useEffect(() => {
         const currentClinicId = clinic?.clinicId || clinic?.id || effectiveClinicId;
-        if (!currentClinicId || selectedServiceIds.length === 0) {
+        if (!currentClinicId || (allClinicServices.length > 0 && selectedServiceIds.length === 0)) {
             setAvailableSlots([]);
             return;
         }
@@ -309,7 +309,7 @@ export default function BookAppointment() {
         return () => {
             isMounted = false;
         };
-    }, [clinic?.clinicId, clinic?.id, effectiveClinicId, selectedDayObj, selectedDoctorId, selectedServiceIds]);
+    }, [clinic?.clinicId, clinic?.id, effectiveClinicId, selectedDayObj, selectedDoctorId, selectedServiceIds, allClinicServices]);
 
     // Handle Service Checkbox Toggle with a 2-Service Limit
     const handleToggleService = (serviceId) => {
@@ -515,15 +515,15 @@ export default function BookAppointment() {
                                     : currentActiveStep === 1
                                         ? 'bg-blue-600 text-white ring-4 ring-blue-100'
                                         : 'bg-slate-100 text-slate-400'
-                                    }`}>
+                                }`}>
                                     {isStep1Complete ? <Check className="w-4 h-4 stroke-[3]" /> : '1'}
                                 </div>
                                 <span className={`text-xs font-bold transition-colors ${isStep1Complete || currentActiveStep === 1 ? 'text-blue-600' : 'text-slate-400'
-                                    }`}>
+                                }`}>
                                     Details
                                 </span>
                                 <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${isStep1Complete ? 'bg-blue-600' : 'bg-slate-200'
-                                    }`} />
+                                }`} />
                             </div>
 
                             <div className="flex flex-col items-center relative z-10 w-1/4">
@@ -532,15 +532,15 @@ export default function BookAppointment() {
                                     : currentActiveStep === 2
                                         ? 'bg-blue-600 text-white ring-4 ring-blue-100'
                                         : 'bg-slate-100 text-slate-400'
-                                    }`}>
+                                }`}>
                                     {isStep2Complete ? <Check className="w-4 h-4 stroke-[3]" /> : '2'}
                                 </div>
                                 <span className={`text-xs font-bold transition-colors ${isStep2Complete || currentActiveStep === 2 ? 'text-blue-600' : 'text-slate-400'
-                                    }`}>
+                                }`}>
                                     Services
                                 </span>
                                 <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${isStep2Complete ? 'bg-blue-600' : 'bg-slate-200'
-                                    }`} />
+                                }`} />
                             </div>
 
                             <div className="flex flex-col items-center relative z-10 w-1/4">
@@ -549,15 +549,15 @@ export default function BookAppointment() {
                                     : currentActiveStep === 3
                                         ? 'bg-blue-600 text-white ring-4 ring-blue-100'
                                         : 'bg-slate-100 text-slate-400'
-                                    }`}>
+                                }`}>
                                     {isStep3Complete ? <Check className="w-4 h-4 stroke-[3]" /> : '3'}
                                 </div>
                                 <span className={`text-xs font-bold transition-colors ${isStep3Complete || currentActiveStep === 3 ? 'text-blue-600' : 'text-slate-400'
-                                    }`}>
+                                }`}>
                                     Time
                                 </span>
                                 <div className={`absolute top-4.5 left-1/2 w-full h-[2px] transition-colors -z-10 ${isStep3Complete ? 'bg-blue-600' : 'bg-slate-200'
-                                    }`} />
+                                }`} />
                             </div>
 
                             <div className="flex flex-col items-center relative z-10 w-1/4">
@@ -566,11 +566,11 @@ export default function BookAppointment() {
                                     : isStep4Complete || currentActiveStep === 4
                                         ? 'bg-blue-600 text-white ring-4 ring-blue-100'
                                         : 'bg-slate-100 text-slate-400'
-                                    }`}>
+                                }`}>
                                     {bookingSuccessData ? <Check className="w-4 h-4 stroke-[3]" /> : '4'}
                                 </div>
                                 <span className={`text-xs font-bold transition-colors ${bookingSuccessData ? 'text-emerald-600' : isStep4Complete || currentActiveStep === 4 ? 'text-blue-600' : 'text-slate-400'
-                                    }`}>
+                                }`}>
                                     Confirm
                                 </span>
                             </div>
@@ -726,7 +726,7 @@ export default function BookAppointment() {
                                                                     : isLimitReached
                                                                         ? 'bg-slate-100/60 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
                                                                         : 'bg-slate-50/60 border-slate-200 hover:bg-white hover:border-slate-300 text-slate-700 cursor-pointer'
-                                                                    }`}
+                                                                }`}
                                                             >
                                                                 <input
                                                                     type="checkbox"
@@ -783,7 +783,7 @@ export default function BookAppointment() {
                                                     className={`shrink-0 w-20 h-16 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer shadow-2xs ${isSelected
                                                         ? 'border-2 border-blue-600 bg-blue-50 text-blue-700 font-bold scale-[1.03]'
                                                         : 'border border-slate-200 bg-white hover:border-blue-300 hover:bg-slate-50 text-slate-700'
-                                                        }`}
+                                                    }`}
                                                 >
                                                     <span className={`text-xs font-bold mb-0.5 ${isSelected ? 'text-blue-600' : 'text-slate-800'}`}>
                                                         {day.dayName}
@@ -860,7 +860,7 @@ export default function BookAppointment() {
                                                                     : isAvailable
                                                                         ? "bg-white hover:border-blue-500 cursor-pointer hover:shadow-sm"
                                                                         : "bg-slate-100 text-slate-400 cursor-not-allowed opacity-70"
-                                                                    }`}
+                                                                }`}
                                                             >
 
                                                                 <div className="font-bold">
