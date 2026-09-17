@@ -8,7 +8,7 @@ import LiveExchangeRates from './components/LiveExchangeRates';
 import TopClinicsLeaderboard from './components/TopClinicsLeaderboard';
 import AdminAuditLog from './components/AdminAuditLog';
 import ClinicReviewModal from './components/ClinicReviewModal';
-import { getDashboardSummary, getPendingClinics } from '../../api/superAdminApi';
+import { getDashboardSummary, getPendingClinics, getClinics } from '../../api/superAdminApi';
 
 export default function AdminDashboard() {
     const [reviewClinic, setReviewClinic] = useState(null);
@@ -16,29 +16,33 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
 
     const [pendingClinics, setPendingClinics] = useState([]);
+    const [activeClinics, setActiveClinics] = useState([]);
+    const [currentTab, setCurrentTab] = useState('active'); // default to 'active' so your 2 clinics show immediately
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const clinicsData = await getPendingClinics();
-            setPendingClinics(clinicsData);
-        } catch (err) {
-            console.error("Failed to load pending clinics", err);
-        }
+            const [pendingData, activeData, summaryData] = await Promise.all([
+                getPendingClinics(),
+                getClinics('APPROVED'),
+                getDashboardSummary()
+            ]);
 
-        try {
-            const summaryData = await getDashboardSummary();
+            setPendingClinics(pendingData);
+            setActiveClinics(activeData);
             setDashboardData(summaryData);
         } catch (err) {
             console.error("Failed to load dashboard data", err);
+        } finally {
+            setLoading(false);
         }
-
-        setLoading(false);
     };
 
     useEffect(() => {
         loadData();
     }, []);
+
+    const displayedClinics = currentTab === 'pending' ? pendingClinics : activeClinics;
 
     return (
         <div className="min-h-screen bg-[#f8fafc] font-sans">
@@ -69,36 +73,38 @@ export default function AdminDashboard() {
 
                 {/* Top Stats Row */}
                 <AdminStatsRow
-                    onReviewClick={() => {
-                        // Dummy click for now
-                    }}
+                    onReviewClick={() => setCurrentTab('pending')}
                     commission={{
-                        value: 48250.00,
+                        value: dashboardData?.commissionRevenueCurrentMonth ?? 48250.00,
                         isPositive: true,
-                        change: 14.8
+                        change: dashboardData?.commissionRevenueChangePercent ?? 14.8
                     }}
                     activeClinics={dashboardData ? {
                         value: dashboardData.activeClinics,
                         newThisMonth: dashboardData.activeClinicsNewThisMonth
                     } : {
-                        value: 142,
-                        newThisMonth: 6
+                        value: activeClinics.length,
+                        newThisMonth: 0
                     }}
                     pendingApprovals={pendingClinics?.length || 0}
                     bookings={{
-                        value: 3840,
+                        value: dashboardData?.bookingsThisMonth ?? 3840,
                         isPositive: true,
-                        change: 9.2
+                        change: dashboardData?.bookingsChangePercent ?? 9.2
                     }}
                 />
 
                 {/* Main Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                    {/* Left Column (Main Content) - Takes up 2 cols on lg screens */}
+                    {/* Left Column (Main Content) */}
                     <div className="lg:col-span-2 flex flex-col gap-5">
                         <RevenueChart />
                         <PendingClinicsTable
-                            pendingClinics={pendingClinics}
+                            clinics={displayedClinics}
+                            currentTab={currentTab}
+                            onTabChange={setCurrentTab}
+                            pendingCount={pendingClinics.length}
+                            activeCount={activeClinics.length}
                             onReviewClick={(clinic) => setReviewClinic(clinic)}
                         />
                     </div>
@@ -106,12 +112,7 @@ export default function AdminDashboard() {
                     {/* Right Column (Side Content) */}
                     <div className="flex flex-col gap-5">
                         <LiveExchangeRates />
-                        <TopClinicsLeaderboard clinics={[
-                            { clinicId: 1, clinicName: 'SmileArt Studio', city: 'Amman', rating: '15% override rate', commission: 12450, currency: 'JOD' },
-                            { clinicId: 2, clinicName: 'Apex Dental Care', city: 'Irbid', rating: '12% standard rate', commission: 9820, currency: 'JOD' },
-                            { clinicId: 3, clinicName: 'Little Teeth Clinic', city: 'Amman', rating: '15% rate', commission: 7650, currency: 'JOD' },
-                            { clinicId: 4, clinicName: 'Aljubahia Dental', city: 'Amman', rating: '10% rate', commission: 6120, currency: 'JOD' }
-                        ]} />
+                        <TopClinicsLeaderboard clinics={dashboardData?.topClinicsByCommission || []} />
                         <AdminAuditLog />
                     </div>
                 </div>
