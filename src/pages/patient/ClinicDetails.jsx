@@ -354,7 +354,8 @@ function TimeSlotGrid({
     useEffect(() => {
         let cancelled = false;
 
-        if (!selectedServiceIds.length) {
+        // AFTER
+        if (services.length > 0 && !selectedServiceIds.length) {
             setSlotsByDate({});
             setLoadingSlots(false);
             return;
@@ -697,6 +698,7 @@ function TimeSlotGrid({
                                         { month: 'short' }
                                     )}
                                 </span>
+
 
                                 {availableCount > 0 && (
                                     <span className="cd-date-available">
