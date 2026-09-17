@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, CheckCircle2, Loader2, Mail } from 'lucide-react';
-import { getClinicReview, approveClinic, rejectClinic, overrideCommission } from '../../../api/superAdminApi';
+import { X, Clock, CheckCircle2, Loader2, Mail, Trash2 } from 'lucide-react';
+import {
+    getClinicReview,
+    approveClinic,
+    rejectClinic,
+    overrideCommission,
+    removeClinic
+} from '../../../api/superAdminApi';
+import ModernAlertModal from '../../../components/ModernAlertModal';
 
 export default function ClinicReviewModal({ clinicId, onClose, onRefresh }) {
     const [clinic, setClinic] = useState(null);
@@ -10,13 +17,14 @@ export default function ClinicReviewModal({ clinicId, onClose, onRefresh }) {
     const [rejectionReason, setRejectionReason] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         if (!clinicId) return;
         setLoading(true);
         getClinicReview(clinicId)
             .then(data => {
-                // Merge real data with mock placeholder data
                 setClinic({
                     ...data,
                     clinicName: data?.clinicInformation?.clinicName || "Unknown",
@@ -70,6 +78,21 @@ export default function ClinicReviewModal({ clinicId, onClose, onRefresh }) {
         } catch (err) {
             setError(err.message || "Failed to reject clinic");
             setSubmitting(false);
+        }
+    };
+
+    const handleDecommissionClinic = async () => {
+        setDeleting(true);
+        setError("");
+        try {
+            await removeClinic(clinicId);
+            setShowDeleteModal(false);
+            onRefresh();
+            onClose();
+        } catch (err) {
+            setError(err.message || "Failed to decommission clinic.");
+            setDeleting(false);
+            setShowDeleteModal(false);
         }
     };
 
@@ -140,31 +163,41 @@ export default function ClinicReviewModal({ clinicId, onClose, onRefresh }) {
                     )}
 
                     {/* Status Banner */}
-                    <div className="bg-cyan-50 border border-cyan-100 rounded-xl p-3 flex items-center justify-between shrink-0">
-                        <div className="flex items-center gap-2 text-cyan-800 text-sm font-semibold">
-                            <Clock className="w-4 h-4" />
-                            <span>Queue #1</span>
+                    <div className={`border rounded-xl p-3 flex items-center justify-between shrink-0 ${
+                        clinic.applicationStatus === 'APPROVED'
+                            ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+                            : 'bg-cyan-50 border-cyan-100 text-cyan-800'
+                    }`}>
+                        <div className="flex items-center gap-2 text-sm font-semibold">
+                            {clinic.applicationStatus === 'APPROVED' ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            ) : (
+                                <Clock className="w-4 h-4 text-cyan-600" />
+                            )}
+                            <span>
+            {clinic.applicationStatus === 'APPROVED' ? 'Active Network Clinic' : 'Queue #1'}
+        </span>
                         </div>
-                        <span className="px-3 py-1 bg-cyan-200/50 text-cyan-800 text-[10px] font-bold tracking-wider uppercase rounded-md">
-                            Pending Verification
-                        </span>
+                        <span className={`px-3 py-1 text-[10px] font-bold tracking-wider uppercase rounded-md ${
+                            clinic.applicationStatus === 'APPROVED'
+                                ? 'bg-emerald-200/60 text-emerald-900'
+                                : 'bg-cyan-200/50 text-cyan-800'
+                        }`}>
+        {clinic.applicationStatus === 'APPROVED' ? 'Operational & Active' : 'Pending Verification'}
+    </span>
                     </div>
-
                     {/* 3 Info Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Legal */}
                         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Legal Brand & Trade Name</span>
                             <h3 className="text-sm font-bold text-slate-900 mb-2 leading-tight">{clinic.legalName}</h3>
                             <span className="text-xs font-semibold text-teal-600">Registry {clinic.registryNo}</span>
                         </div>
-                        {/* Location */}
                         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Location & Expansion</span>
                             <h3 className="text-sm font-bold text-slate-900 mb-2">{clinic.city}</h3>
                             <span className="text-xs font-medium text-slate-500">{clinic.branches} Operational Branch{clinic.branches > 1 ? 'es' : ''}</span>
                         </div>
-                        {/* Staff */}
                         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Staff & Practice Scale</span>
                             <h3 className="text-sm font-bold text-slate-900 mb-2">{clinic.doctors} Accredited Dentists</h3>
@@ -252,27 +285,76 @@ export default function ClinicReviewModal({ clinicId, onClose, onRefresh }) {
                 {/* Footer */}
                 {!isRejecting && (
                     <div className="px-6 py-4 border-t border-slate-100 bg-white flex items-center justify-between mt-auto shrink-0">
-                        <button
-                            onClick={() => setIsRejecting(true)}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold rounded-lg transition-colors"
-                        >
-                            <X className="w-4 h-4" /> Reject Application
-                        </button>
-                        <div className="flex items-center gap-3">
-                            <button onClick={onClose} className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors">
-                                Dismiss
-                            </button>
-                            <button
-                                onClick={handleApprove}
-                                disabled={submitting}
-                                className="flex items-center gap-1.5 px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-lg transition-colors shadow-sm disabled:bg-blue-400"
-                            >
-                                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                                Approve & Activate Clinic
-                            </button>
-                        </div>
+
+                        {clinic.applicationStatus === 'APPROVED' ? (
+                            /* ========================================================
+                               ACTIVE CLINIC FOOTER: Only Decommission & Dismiss
+                               ======================================================== */
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDeleteModal(true)}
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-600 text-xs font-bold rounded-lg transition-colors border border-rose-200 shadow-xs cursor-pointer"
+                                    title="Decommission clinic from the platform"
+                                >
+                                    <Trash2 className="w-4 h-4" /> Decommission Clinic
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={onClose}
+                                    className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                                >
+                                    Close
+                                </button>
+                            </>
+                        ) : (
+                            /* ========================================================
+                               PENDING CLINIC FOOTER: Reject, Dismiss & Approve
+                               ======================================================== */
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsRejecting(true)}
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                                >
+                                    <X className="w-4 h-4" /> Reject Application
+                                </button>
+
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                                    >
+                                        Dismiss
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleApprove}
+                                        disabled={submitting}
+                                        className="flex items-center gap-1.5 px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold rounded-lg transition-colors shadow-sm disabled:bg-blue-400 cursor-pointer"
+                                    >
+                                        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                        Approve & Activate Clinic
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
+                {/* Confirmation Modal */}
+                <ModernAlertModal
+                    isOpen={showDeleteModal}
+                    type="danger"
+                    title="Decommission Clinic"
+                    message={`Are you sure you want to decommission "${clinic.clinicName}"? The clinic will be permanently deactivated and removed from public discovery, but historical appointments, financial reports, and reviews will be preserved.`}
+                    showCancel={true}
+                    cancelText="Cancel"
+                    confirmText={deleting ? "Decommissioning..." : "Yes, Decommission"}
+                    onConfirm={handleDecommissionClinic}
+                    onClose={() => setShowDeleteModal(false)}
+                />
             </div>
         </div>
     );

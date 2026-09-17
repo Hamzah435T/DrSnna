@@ -66,3 +66,29 @@ export async function overrideCommission(clinicId, rate) {
     if (!res.ok) throw new Error("Failed to override commission");
     return res.json();
 }
+
+
+export async function getClinics(status = null) {
+    const url = status
+        ? `${BASE_URL}/super-admin/clinics?status=${status}`
+        : `${BASE_URL}/super-admin/clinics`;
+
+    const res = await fetch(url, {
+        headers: authHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to load clinics");
+    return res.json();
+}
+
+export async function removeClinic(clinicId) {
+    const res = await fetch(`${BASE_URL}/super-admin/clinics/${clinicId}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to remove clinic");
+    }
+    return true;
+}
