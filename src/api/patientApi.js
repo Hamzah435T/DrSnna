@@ -1,14 +1,50 @@
-// src/api/patientApi.js
-import { getAuth } from "../auth/authStorage";
+
+import { getAuth, saveAuth, clearAuth } from "../auth/authStorage";
+import { refreshAccessToken } from "./authApi";
 
 const BASE_URL = "http://localhost:8080/api";
 
-function authHeaders() {
+// ── Central Fetch Wrapper with Silent 401 Refresh ───────────────────────
+async function apiFetch(url, options = {}) {
     const auth = getAuth();
-    return {
-        "Content-Type": "application/json", "Accept-Language": localStorage.getItem("i18nextLng") || "en",
+    const headers = {
+        "Content-Type": "application/json",
+        "Accept-Language": localStorage.getItem("i18nextLng") || "en",
         ...(auth?.token ? { Authorization: `Bearer ${auth.token}` } : {}),
+        ...options.headers,
     };
+
+    let res = await fetch(url, {
+        ...options,
+        headers,
+        credentials: "include",
+    });
+
+    // If Access Token expired, silently refresh and retry once
+    if (res.status === 401 && !url.includes("/auth/")) {
+        try {
+            const newAuthData = await refreshAccessToken();
+            saveAuth(newAuthData);
+
+            headers["Authorization"] = `Bearer ${newAuthData.token}`;
+            res = await fetch(url, {
+                ...options,
+                headers,
+                credentials: "include",
+            });
+        } catch (refreshErr) {
+        clearAuth();
+        window.location.href = "/login";
+        throw new Error("Session expired. Please log in again.", { cause: refreshErr });
+    }
+    }
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        throw new Error(data.message || `Request failed with status ${res.status}`);
+    }
+
+    return data;
 }
 
 function cleanQueryParams(params = {}) {
@@ -35,31 +71,13 @@ function cleanQueryParams(params = {}) {
 // ── 1. Clinic Discovery Endpoints ─────────────────────────────────────
 export async function searchClinics(params = {}) {
     const queryString = cleanQueryParams(params);
-    const url = `${BASE_URL}/patient/clinics${queryString ? `?${queryString}` : ""}`;
-
-    const res = await fetch(url, {
-        headers: authHeaders(),
-    });
-
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to search clinics");
-    }
-    return res.json();
+    return apiFetch(`${BASE_URL}/patient/clinics${queryString ? `?${queryString}` : ""}`);
 }
 export const getClinics = searchClinics;
 export const fetchClinics = searchClinics;
 
 export async function getClinicDetails(clinicId) {
-    const res = await fetch(`${BASE_URL}/patient/clinics/${clinicId}`, {
-        headers: authHeaders(),
-    });
-
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to load clinic details");
-    }
-    return res.json();
+    return apiFetch(`${BASE_URL}/patient/clinics/${clinicId}`);
 }
 export const fetchClinicDetails = getClinicDetails;
 
@@ -69,7 +87,7 @@ export async function fetchAvailability({ clinicId, date, doctorId, serviceId, s
 
     const params = new URLSearchParams();
     params.append("date", date);
-    
+
     if (serviceIds && serviceIds.length > 0) {
         serviceIds.forEach(id => params.append("serviceId", id));
     } else if (serviceId) {
@@ -80,15 +98,7 @@ export async function fetchAvailability({ clinicId, date, doctorId, serviceId, s
     }
 
     try {
-        const res = await fetch(
-            `${BASE_URL}/patient/clinics/${clinicId}/availability?${params.toString()}`,
-            {
-                headers: authHeaders(),
-            }
-        );
-
-        if (!res.ok) return [];
-        return await res.json();
+        return await apiFetch(`${BASE_URL}/patient/clinics/${clinicId}/availability?${params.toString()}`);
     } catch {
         return [];
     }
@@ -97,140 +107,66 @@ export const getAvailability = fetchAvailability;
 
 // ── 3. Appointment Booking Endpoint ──────────────────────────────────
 export async function bookAppointment(payload) {
-    const res = await fetch(`${BASE_URL}/appointments/book`, {
+    return apiFetch(`${BASE_URL}/appointments/book`, {
         method: "POST",
-        headers: authHeaders(),
         body: JSON.stringify(payload),
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        throw new Error(data.message || "Failed to complete appointment booking");
-    }
-    return data;
 }
 export const bookPatientAppointment = bookAppointment;
 
 // ── 4. Patient Appointments & History ────────────────────────────────
 export async function getPatientAppointments(scope = "upcoming") {
-    const res = await fetch(`${BASE_URL}/patient/appointments?scope=${scope}`, {
-        headers: authHeaders(),
-    });
-
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to load appointments");
-    }
-    return res.json();
+    return apiFetch(`${BASE_URL}/patient/appointments?scope=${scope}`);
 }
 export const fetchPatientAppointments = getPatientAppointments;
 
 export async function getAppointmentDetails(appointmentId) {
-    const res = await fetch(`${BASE_URL}/patient/appointments/${appointmentId}`, {
-        headers: authHeaders(),
-    });
-
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to load appointment details");
-    }
-    return res.json();
+    return apiFetch(`${BASE_URL}/patient/appointments/${appointmentId}`);
 }
 
 export async function cancelAppointment(appointmentId) {
-    const res = await fetch(`${BASE_URL}/patient/appointments/${appointmentId}`, {
+    return apiFetch(`${BASE_URL}/patient/appointments/${appointmentId}`, {
         method: "DELETE",
-        headers: authHeaders(),
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        throw new Error(data.message || "Failed to cancel appointment");
-    }
-    return data;
 }
 
 // ── 5. Reviews ───────────────────────────────────────────────────────
 export async function createReview(reviewPayload) {
-    const res = await fetch(`${BASE_URL}/patient/reviews`, {
+    return apiFetch(`${BASE_URL}/patient/reviews`, {
         method: "POST",
-        headers: authHeaders(),
         body: JSON.stringify(reviewPayload),
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        throw new Error(data.message || "Failed to submit review");
-    }
-    return data;
 }
 
 // ── 6. Patient Favorites ─────────────────────────────────────────────
 export async function getPatientFavorites() {
-    const res = await fetch(`${BASE_URL}/patient/favorites`, {
-        headers: authHeaders(),
-    });
-
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to load favorite doctors");
-    }
-    return res.json();
+    return apiFetch(`${BASE_URL}/patient/favorites`);
 }
 
 export async function addDoctorToFavorites(doctorId) {
-    const res = await fetch(`${BASE_URL}/patient/favorites`, {
+    return apiFetch(`${BASE_URL}/patient/favorites`, {
         method: "POST",
-        headers: authHeaders(),
         body: JSON.stringify({ doctorId }),
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        throw new Error(data.message || "Failed to add favorite");
-    }
-    return data;
 }
 
 export async function removeDoctorFromFavorites(doctorId) {
-    const res = await fetch(`${BASE_URL}/patient/favorites/${doctorId}`, {
+    return apiFetch(`${BASE_URL}/patient/favorites/${doctorId}`, {
         method: "DELETE",
-        headers: authHeaders(),
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        throw new Error(data.message || "Failed to remove favorite");
-    }
-    return data;
 }
 
 // ── 7. Profile / Auth Endpoints ──────────────────────────────────────
 export async function getMyProfile() {
-    const res = await fetch(`${BASE_URL}/auth/me`, {
-        headers: authHeaders(),
-    });
-
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to load profile details");
-    }
-    return res.json();
+    return apiFetch(`${BASE_URL}/auth/me`);
 }
 export const getPatientProfile = getMyProfile;
 
 export async function updateMyProfile(profileData) {
-    const res = await fetch(`${BASE_URL}/auth/me`, {
+    return apiFetch(`${BASE_URL}/auth/me`, {
         method: "PUT",
-        headers: authHeaders(),
         body: JSON.stringify(profileData),
     });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-        throw new Error(data.message || "Failed to update profile");
-    }
-    return data;
 }
 export const updatePatientProfile = updateMyProfile;
 
@@ -238,41 +174,16 @@ export const updatePatientProfile = updateMyProfile;
 export async function getDoctorAppointments(date = null, scope = "upcoming") {
     const params = new URLSearchParams({ scope });
     if (date) params.append("date", date);
-
-    const res = await fetch(`${BASE_URL}/doctor/appointments?${params.toString()}`, {
-        headers: authHeaders(),
-    });
-
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to load doctor appointments");
-    }
-    return res.json();
+    return apiFetch(`${BASE_URL}/doctor/appointments?${params.toString()}`);
 }
 export const fetchDoctorAppointments = getDoctorAppointments;
 
 export async function getDoctorSchedule() {
-    const res = await fetch(`${BASE_URL}/doctor/schedule`, {
-        headers: authHeaders(),
-    });
-
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to load doctor schedule");
-    }
-    return res.json();
+    return apiFetch(`${BASE_URL}/doctor/schedule`);
 }
 export const fetchDoctorSchedule = getDoctorSchedule;
 
 // ── 9. Wallet Endpoint ───────────────────────────────────────────────
 export async function getWallet() {
-    const res = await fetch(`${BASE_URL}/patient/wallet`, {
-        headers: authHeaders(),
-    });
-
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to load wallet details");
-    }
-    return res.json();
+    return apiFetch(`${BASE_URL}/patient/wallet`);
 }
