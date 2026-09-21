@@ -1,16 +1,14 @@
 import 'react';
-import { NavLink, useNavigate } from 'react-router';
+import { NavLink,useSubmit } from 'react-router';
 import { LayoutDashboard, UserRound, Calendar, Settings, HelpCircle, LogOut, Stethoscope, ShieldCheck, Globe } from 'lucide-react';
-import { clearAuth } from '../auth/authStorage';
 import { useTranslation } from 'react-i18next';
 
 export default function ClinicSidebar() {
-    const navigate = useNavigate();
     const { t, i18n } = useTranslation();
+    const submit = useSubmit();
 
     const handleLogout = () => {
-        clearAuth();
-        navigate('/login');
+        submit(null, { method: "post", action: "/logout" });
     };
 
     const toggleLanguage = () => {
@@ -100,11 +98,12 @@ export default function ClinicSidebar() {
                     {t('clinicSidebar.support')}
                 </button>
                 <button
+                    type="button"
                     onClick={handleLogout}
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-red-600 w-full rounded-xl transition-colors"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-red-600 w-full rounded-xl transition-colors cursor-pointer"
                 >
                     <LogOut className="w-5 h-5" />
-                    {t('clinicSidebar.logout')}
+                    <span>{t('clinicSidebar.logout')}</span>
                 </button>
             </div>
         </aside>

@@ -1,11 +1,11 @@
 import React from 'react';
 import { Search, Bell, HelpCircle, User, LogOut } from 'lucide-react';
-import { clearAuth } from '../../../auth/authStorage';
-
+import { useSubmit } from 'react-router';
 export default function AdminNavbar() {
+    const submit = useSubmit();
+
     const handleLogout = () => {
-        clearAuth();
-        window.location.href = '/login';
+        submit(null, { method: 'post', action: '/logout' });
     };
     return (
         <nav className="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200">
@@ -36,8 +36,9 @@ export default function AdminNavbar() {
             {/* Right Actions */}
             <div className="flex items-center gap-5">
                 <button
+                    type="button"
                     onClick={handleLogout}
-                    className="flex items-center justify-center w-8 h-8 rounded-full text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    className="flex items-center justify-center w-8 h-8 rounded-full text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                     title="Logout"
                 >
                     <LogOut className="w-4 h-4" />
