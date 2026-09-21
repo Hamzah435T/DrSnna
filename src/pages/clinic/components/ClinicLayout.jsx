@@ -1,4 +1,4 @@
-import { Form, NavLink } from "react-router";
+import { NavLink, useSubmit } from "react-router";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -12,9 +12,12 @@ import { useTranslation } from "react-i18next";
  * @param {React.Node}   sidebarBottomContent - extra content injected below nav
  */
 export default function ClinicLayout({ children, sidebarTopContent }) {
+    const submit = useSubmit();
     const { i18n } = useTranslation();
     const isArabic = i18n.language === 'ar';
-
+    const handleLogout = () => {
+        submit(null, { method: "post", action: "/logout" });
+    };
     const toggleLanguage = () => {
         i18n.changeLanguage(isArabic ? 'en' : 'ar');
     };
@@ -90,15 +93,16 @@ export default function ClinicLayout({ children, sidebarTopContent }) {
                         <SupportIcon />
                         Support
                     </button>
-                    <Form method="post" action="/logout">
+
                         <button
-                            type="submit"
+                            type="button"
+                            onClick={handleLogout}
                             className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-gray-500 hover:text-red-600 transition-colors cursor-pointer"
                         >
                             <LogoutIcon />
                             Logout
                         </button>
-                    </Form>
+
                 </div>
             </aside>
 

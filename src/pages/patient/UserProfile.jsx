@@ -1,5 +1,5 @@
 // src/pages/patient/UserProfile.jsx
-import  { useState, useEffect, useMemo,useRef} from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { getAuth } from '../../auth/authStorage';
 import PatientNavbar from '../../components/PatientNavbar';
@@ -29,9 +29,21 @@ import {
     ChevronLeft,
     ChevronRight,
     Plus,
-
 } from 'lucide-react';
 import { utcToLocalRecurring, utcToLocalSpecific } from '../../utils/timezone';
+
+// Explicit initial object with pure primitive strings/numbers to prevent WebStorm "undefined" type inference
+const INITIAL_USER_DATA = {
+    fullName: 'Loading...',
+    role: 'PATIENT',
+    city: 'AMMAN',
+    email: '',
+    phone: '',
+    bio: '',
+    visits: 0,
+    upcoming: 0,
+    favorites: 0,
+};
 
 export default function UserProfile() {
     const navigate = useNavigate();
@@ -44,24 +56,17 @@ export default function UserProfile() {
             block: 'start'
         });
     };
+
     // ── Profile State ──
     const [userData, setUserData] = useState({
-        fullName: 'Loading...',
-        role: auth?.role || 'PATIENT',
-        city: 'AMMAN',
-        email: '',
-        phone: '',
-        bio: '',
-        visits: 0,
-        upcoming: 0,
-        favorites: 0,
+        ...INITIAL_USER_DATA,
+        role: auth?.role ? String(auth.role) : 'PATIENT',
     });
     const [isLoading, setIsLoading] = useState(true);
 
     const isDoctor = auth?.role === 'DOCTOR' || userData.role === 'DOCTOR';
 
     // ── Edit Profile Modal State ──
-
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editStep, setEditStep] = useState('verify'); // 'verify' | 'form'
     const [verifyPassword, setVerifyPassword] = useState("");
@@ -77,7 +82,7 @@ export default function UserProfile() {
     });
 
     // ── Appointments & History State (Patient) ──
-    const [historyFilter, setHistoryFilter] = useState('Past'); // 'Past' | 'Upcoming' | 'All'
+    const [historyFilter] = useState('Past'); // 'Past' | 'Upcoming' | 'All'
     const [upcomingAppointments, setUpcomingAppointments] = useState([]);
     const [historyList, setHistoryList] = useState([]);
     const [showAllUpcoming, setShowAllUpcoming] = useState(false);
@@ -95,34 +100,21 @@ export default function UserProfile() {
     // ── Favorites State ──
     const [favoritesList, setFavoritesList] = useState([]);
 
-    // ── Initial Data Fetching ──
-    useEffect(() => {
-        loadInitialData();
-    }, []);
-
-    // ── Reload Patient Appointments When Filter Changes ──
-    useEffect(() => {
-        if (!isDoctor) {
-            loadPatientAppointments(historyFilter.toLowerCase());
-        }
-    }, [historyFilter, isDoctor]);
-
+    // ── Data Fetching Functions ──
     async function loadInitialData() {
-        setIsLoading(true);
+
         try {
-            // 1. Fetch Profile Info
             const profile = await getMyProfile();
             setUserData(prev => ({
                 ...prev,
                 fullName: profile.fullName || '',
-                role: profile.role || 'PATIENT',
+                role: String(profile.role || 'PATIENT'),
                 city: profile.city || 'AMMAN',
                 email: profile.email || '',
-                phone: profile.phone || '07 XXXX XXXX',
+                phone: profile.phoneNumber || '',
                 bio: profile.bio || '',
             }));
 
-            // 2. Fetch Appointments & Schedules
             if (profile.role === 'DOCTOR') {
                 const [docApts, docSched] = await Promise.all([
                     getDoctorAppointments(null, 'all'),
@@ -167,6 +159,20 @@ export default function UserProfile() {
         }
     }
 
+    // ── Initial Data Fetching Effect ──
+    useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        void loadInitialData();
+    }, []);
+
+    // ── Reload Patient Appointments When Filter Changes ──
+    useEffect(() => {
+        if (!isDoctor) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            void loadPatientAppointments(historyFilter.toLowerCase());
+        }
+    }, [historyFilter, isDoctor]);
+
     // ── Filter Patient Appointments ──
     const filteredHistoryList = useMemo(() => {
         const now = new Date();
@@ -174,15 +180,15 @@ export default function UserProfile() {
         return historyList.filter((item) => {
             if (!item.appointmentAt) return false;
             const itemDate = new Date(item.appointmentAt);
+
+            // Keep strictly appointments whose time has already passed OR are marked COMPLETED
             const hasPassed = itemDate <= now;
+            const isFinishedOrCompleted = item.status === 'COMPLETED' || item.status === 'FINISHED';
 
-            if (historyFilter === 'Past') return hasPassed;
-            if (historyFilter === 'Upcoming') return !hasPassed && item.status !== 'CANCELLED';
-            return true;
+            return hasPassed || isFinishedOrCompleted;
         });
-    }, [historyList, historyFilter]);
+    }, [historyList]);
 
-    // Number of visits = number of appointments currently in Appointment History
     const visitsCount = useMemo(() => {
         return filteredHistoryList.length;
     }, [filteredHistoryList]);
@@ -212,12 +218,10 @@ export default function UserProfile() {
         });
     }, [doctorAppointments, docHistoryFilter]);
 
-// Patient: Show first 3 by default, or all when expanded
     const displayedPatientUpcoming = useMemo(() => {
         return showAllUpcoming ? upcomingAppointments : upcomingAppointments.slice(0, 3);
     }, [upcomingAppointments, showAllUpcoming]);
 
-    // Doctor: Show first 3 by default, or all when expanded
     const displayedDoctorUpcoming = useMemo(() => {
         return showAllDocUpcoming ? upcomingDoctorAppointments : upcomingDoctorAppointments.slice(0, 3);
     }, [upcomingDoctorAppointments, showAllDocUpcoming]);
@@ -230,7 +234,6 @@ export default function UserProfile() {
         const firstDayOfMonth = new Date(year, month, 1);
         const lastDayOfMonth = new Date(year, month + 1, 0);
 
-        // Convert Sunday (0) to 7 for Mon (1) -> Sun (7) layout
         let startDay = firstDayOfMonth.getDay();
         startDay = startDay === 0 ? 6 : startDay - 1;
 
@@ -239,7 +242,6 @@ export default function UserProfile() {
 
         const days = [];
 
-        // Previous Month Overflow
         for (let i = startDay - 1; i >= 0; i--) {
             const dayNum = prevMonthLastDay - i;
             days.push({
@@ -249,7 +251,6 @@ export default function UserProfile() {
             });
         }
 
-        // Current Month Days
         for (let i = 1; i <= totalDays; i++) {
             days.push({
                 dayNumber: i,
@@ -258,7 +259,6 @@ export default function UserProfile() {
             });
         }
 
-        // Next Month Overflow to make complete weeks (multiples of 7)
         const remaining = 7 - (days.length % 7);
         if (remaining < 7) {
             for (let i = 1; i <= remaining; i++) {
@@ -283,16 +283,16 @@ export default function UserProfile() {
 
     // ── Toggle Favorite Doctor ──
     async function toggleFavorite(doctor) {
-        const isFav = favoritesList.some(f => f.id === doctor.id || f.doctorId === doctor.id);
-        const doctorId = doctor.id || doctor.doctorId;
+        const docId = doctor.id || doctor.doctorId || doctor.doctorUserId;
+        const isFav = favoritesList.some(f => (f.id || f.doctorId || f.doctorUserId) === docId);
 
         try {
             if (isFav) {
-                await removeDoctorFromFavorites(doctorId);
-                setFavoritesList(prev => prev.filter(f => (f.id || f.doctorId) !== doctorId));
+                await removeDoctorFromFavorites(docId);
+                setFavoritesList(prev => prev.filter(f => (f.id || f.doctorId || f.doctorUserId) !== docId));
                 setUserData(prev => ({ ...prev, favorites: Math.max(0, prev.favorites - 1) }));
             } else {
-                await addDoctorToFavorites(doctorId);
+                await addDoctorToFavorites(docId);
                 setFavoritesList(prev => [...prev, doctor]);
                 setUserData(prev => ({ ...prev, favorites: prev.favorites + 1 }));
             }
@@ -328,16 +328,14 @@ export default function UserProfile() {
 
         setIsVerifying(true);
         try {
-            // Verify current password against backend credentials
             await login({
                 email: userData.email,
                 password: verifyPassword
             });
 
-            // Password is correct; unlock the edit form
             setEditStep('form');
             setPasswordError("");
-        } catch (err) {
+        } catch {
             setPasswordError("Incorrect password. Please enter your valid account password.");
         } finally {
             setIsVerifying(false);
@@ -353,8 +351,8 @@ export default function UserProfile() {
                 setPasswordError("New password cannot be the same as your current password.");
                 return;
             }
-            if (editForm.newPassword.length < 8) {
-                setPasswordError("New password must be at least 8 characters long.");
+            if (editForm.newPassword.length < 8 || editForm.newPassword.length > 12) {
+                setPasswordError("New password must be between 8 and 12 characters long.");
                 return;
             }
             if (!editForm.confirmPassword) {
@@ -368,12 +366,13 @@ export default function UserProfile() {
         }
 
         try {
-            // Only send password fields if a new password was explicitly set
             const payload = {
-                fullName: editForm.fullName,
-                email: editForm.email,
+                fullName: editForm.fullName.trim(),
+                email: editForm.email.trim(),
+                phoneNumber: editForm.phone ? editForm.phone.trim() : null,
                 city: editForm.city,
-                password: editForm.newPassword ? editForm.newPassword : null,
+                currentPassword: verifyPassword,
+                newPassword: editForm.newPassword ? editForm.newPassword : null,
                 confirmPassword: editForm.newPassword ? editForm.confirmPassword : null
             };
 
@@ -383,6 +382,7 @@ export default function UserProfile() {
                 ...prev,
                 fullName: updated.fullName,
                 email: updated.email,
+                phone: updated.phoneNumber || prev.phone,
                 city: updated.city,
             }));
 
@@ -436,39 +436,38 @@ export default function UserProfile() {
 
             <main className="max-w-2xl mx-auto px-4 py-6 sm:py-8 space-y-6">
 
-
                 {/* ── 1. EDIT INFO SECTION ── */}
-
                 <section className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
                     <div className="flex items-center justify-between mb-5">
-                        <h2 className="text-[26px] font-bold text-slate-900">Profile</h2>                        <div className="flex items-center gap-2 mb-6">
-                        <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
-                            <button className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-white text-blue-600 shadow-xs">
-                                Profile
-                            </button>
+                        <h2 className="text-[26px] font-bold text-slate-900">Profile</h2>
+                        <div className="flex items-center gap-2">
+                            <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
+                                <button className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-white text-blue-600 shadow-xs">
+                                    Profile
+                                </button>
+                                <button
+                                    onClick={scrollToAppointments}
+                                    className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer transition-colors"
+                                >
+                                    Appointments
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/')}
+                                    className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer transition-colors"
+                                >
+                                    Book
+                                </button>
+                            </div>
+
                             <button
-                                onClick={scrollToAppointments}
-                                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer transition-colors"
+                                onClick={handleOpenEditModal}
+                                className="p-2 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors ml-2"
+                                title="Edit info"
                             >
-                                Appointments
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate('/')}
-                                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer transition-colors"
-                            >
-                                Book
+                                <Edit3 className="w-4 h-4" />
                             </button>
                         </div>
-                    </div>
-
-                        <button
-                            onClick={handleOpenEditModal}
-                            className="p-2 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                            title="Edit info"
-                        >
-                            <Edit3 className="w-4 h-4" />
-                        </button>
                     </div>
 
                     <div className="flex items-center gap-4 mb-5">
@@ -507,7 +506,7 @@ export default function UserProfile() {
                             </div>
                             <div>
                                 <span className="text-[10px] text-slate-400 block font-medium">Phone</span>
-                                <span className="text-xs font-semibold text-slate-800">{userData.phone}</span>
+                                <span className="text-xs font-semibold text-slate-800">{userData.phone || "Not provided"}</span>
                             </div>
                         </div>
                     </div>
@@ -515,7 +514,9 @@ export default function UserProfile() {
                     {/* Stats counters */}
                     <div className="grid grid-cols-3 gap-2 mt-6 pt-5 border-t border-slate-100 text-center">
                         <div>
-                            <span className="text-xl font-extrabold text-slate-900 block">{String(isDoctor ? userData.visits : visitsCount).padStart(2, '0')}</span>
+                            <span className="text-xl font-extrabold text-slate-900 block">
+                                {String(isDoctor ? userData.visits : visitsCount).padStart(2, '0')}
+                            </span>
                             <span className="text-[11px] text-slate-400 font-medium">Visits</span>
                         </div>
                         <div className="border-x border-slate-100">
@@ -558,7 +559,7 @@ export default function UserProfile() {
                             <div className="space-y-3">
                                 {displayedPatientUpcoming.map((apt) => (
                                     <div
-                                        key={apt.appointmentId}
+                                        key={apt.appointmentId || apt.id}
                                         className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all"
                                     >
                                         <div className="flex items-center gap-3">
@@ -573,8 +574,8 @@ export default function UserProfile() {
                                             </div>
                                         </div>
                                         <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
-                            {apt.status}
-                        </span>
+                                            {apt.status}
+                                        </span>
                                     </div>
                                 ))}
                             </div>
@@ -586,27 +587,28 @@ export default function UserProfile() {
                 {!isDoctor && (
                     <section className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-base font-bold text-slate-900">Appointment History</h2>
-
-                            <p value="Past">Past Appointments list</p>
-
-
+                            <div>
+                                <h2 className="text-base font-bold text-slate-900">Appointment History</h2>
+                                <p className="text-xs text-slate-400 mt-0.5">Completed and past clinical visits</p>
+                            </div>
+                            <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                {filteredHistoryList.length} Completed
+            </span>
                         </div>
 
                         {filteredHistoryList.length === 0 ? (
-                            <p className="text-xs text-slate-400 py-4 text-center">
-                                No {historyFilter.toLowerCase()} appointments found.
+                            <p className="text-xs text-slate-400 py-6 text-center">
+                                No past appointments on record.
                             </p>
                         ) : (
                             <div className="space-y-3">
                                 {filteredHistoryList.map((item) => {
                                     const isCancelled = item.status === 'CANCELLED';
-                                    const statusLabel = isCancelled ? 'CANCELLED' : 'FINISHED';
 
                                     return (
                                         <div
-                                            key={item.appointmentId}
-                                            className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-white"
+                                            key={item.appointmentId || item.id}
+                                            className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-white hover:bg-slate-50/50 transition-colors"
                                         >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 rounded-full bg-indigo-500 text-white font-bold text-xs flex items-center justify-center shadow-xs">
@@ -620,13 +622,13 @@ export default function UserProfile() {
                                                 </div>
                                             </div>
 
-                                            {/* Status Badge: Defaults to FINISHED unless explicitly CANCELLED */}
-                                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${isCancelled
-                                                ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                                                : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                            <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                                                isCancelled
+                                                    ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                                                    : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                                             }`}>
-                                                {statusLabel}
-                                            </span>
+                                {isCancelled ? 'CANCELLED' : 'FINISHED'}
+                            </span>
                                         </div>
                                     );
                                 })}
@@ -689,7 +691,7 @@ export default function UserProfile() {
                             <div className="space-y-3">
                                 {favoritesList.map((fav) => (
                                     <div
-                                        key={fav.id || fav.doctorId}
+                                        key={fav.id || fav.doctorId || fav.doctorUserId}
                                         className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 hover:border-slate-200 transition-all"
                                     >
                                         <div className="flex items-center gap-3">
@@ -743,7 +745,7 @@ export default function UserProfile() {
                                 <div className="space-y-3">
                                     {displayedDoctorUpcoming.map((item) => (
                                         <div
-                                            key={item.appointmentId}
+                                            key={item.appointmentId || item.id}
                                             className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all"
                                         >
                                             <div className="flex items-center gap-3">
@@ -761,20 +763,34 @@ export default function UserProfile() {
                                             </div>
 
                                             <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-100">
-                        {item.status}
-                    </span>
+                                                {item.status}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </section>
+
                         {/* 2. Doctor Appointment History */}
                         <section className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-base font-bold text-slate-900">Appointment History</h2>
-                                <p value="Past">Past Appointments list</p>
-
-
+                                <div className="flex bg-slate-100 p-0.5 rounded-xl text-[11px] font-semibold">
+                                    {['Past', 'Upcoming', 'All'].map((tab) => (
+                                        <button
+                                            key={tab}
+                                            type="button"
+                                            onClick={() => setDocHistoryFilter(tab)}
+                                            className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                                                docHistoryFilter === tab
+                                                    ? 'bg-white text-blue-600 shadow-xs font-bold'
+                                                    : 'text-slate-500 hover:text-slate-800'
+                                            }`}
+                                        >
+                                            {tab}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
                             {filteredDoctorHistoryList.length === 0 ? (
@@ -789,7 +805,7 @@ export default function UserProfile() {
 
                                         return (
                                             <div
-                                                key={item.appointmentId}
+                                                key={item.appointmentId || item.id}
                                                 className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-white hover:bg-slate-50/50 transition-colors"
                                             >
                                                 <div className="flex items-center gap-3">
@@ -806,9 +822,10 @@ export default function UserProfile() {
                                                     </div>
                                                 </div>
 
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${isCancelled
-                                                    ? 'bg-rose-50 text-rose-600 border border-rose-200'
-                                                    : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${
+                                                    isCancelled
+                                                        ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                                                        : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                                                 }`}>
                                                     {statusLabel}
                                                 </span>
@@ -819,7 +836,7 @@ export default function UserProfile() {
                             )}
                         </section>
 
-                        {/* 3. Weekly Schedule (Connected to backend doctorSchedules) */}
+                        {/* 3. Weekly Schedule */}
                         <section className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
                             <div className="flex items-center justify-between mb-5">
                                 <h2 className="text-base font-bold text-slate-900">Weekly Schedule</h2>
@@ -844,7 +861,6 @@ export default function UserProfile() {
                                         </thead>
                                         <tbody className="divide-y divide-slate-50">
                                         {doctorSchedules.map((row) => {
-                                            // Convert UTC schedule to Local Time
                                             let localDateStr = row.specificDate;
                                             let localDayStr = row.dayOfWeek;
                                             let localStart = row.startTime ? row.startTime.substring(0, 5) : "";
@@ -902,19 +918,19 @@ export default function UserProfile() {
                             )}
                         </section>
 
-                        {/* 4. Schedule Calendar (Month/Week/Day layout with dynamic event pills) */}
+                        {/* 4. Schedule Calendar */}
                         <section className="bg-white rounded-3xl p-6 shadow-xs border border-slate-100">
                             <h2 className="text-base font-bold text-slate-900 mb-4">Schedule Calendar</h2>
 
-                            {/* View Switcher: Month | Week | Day */}
                             <div className="flex bg-slate-100/80 p-1 rounded-2xl w-fit mb-5">
                                 {['Month', 'Week', 'Day'].map((tab) => (
                                     <button
                                         key={tab}
                                         onClick={() => setCalendarTab(tab)}
-                                        className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${calendarTab === tab
-                                            ? 'bg-white text-blue-600 shadow-xs'
-                                            : 'text-slate-500 hover:text-slate-900'
+                                        className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                                            calendarTab === tab
+                                                ? 'bg-white text-blue-600 shadow-xs'
+                                                : 'text-slate-500 hover:text-slate-900'
                                         }`}
                                     >
                                         {tab}
@@ -922,7 +938,6 @@ export default function UserProfile() {
                                 ))}
                             </div>
 
-                            {/* Month Header Navigation & Add Event Button */}
                             <div className="flex items-center justify-between mb-6">
                                 <div className="flex items-center gap-2">
                                     <button
@@ -951,7 +966,6 @@ export default function UserProfile() {
                                 </button>
                             </div>
 
-                            {/* Days of Week Header */}
                             <div className="grid grid-cols-7 gap-1 text-center font-bold text-[10px] text-slate-400 mb-2 uppercase tracking-wider">
                                 <span>Mon</span>
                                 <span>Tue</span>
@@ -962,7 +976,6 @@ export default function UserProfile() {
                                 <span className="text-rose-500">Sun</span>
                             </div>
 
-                            {/* Calendar Days Matrix */}
                             <div className="grid grid-cols-7 gap-1.5">
                                 {calendarDays.map((cell, idx) => {
                                     const hasShift = doctorSchedules.some(s => s.specificDate === cell.dateStr);
@@ -974,19 +987,21 @@ export default function UserProfile() {
                                     return (
                                         <div
                                             key={idx}
-                                            className={`min-h-[75px] rounded-2xl p-1.5 flex flex-col justify-between border transition-all ${cell.isCurrentMonth
-                                                ? isToday
-                                                    ? 'bg-blue-50/50 border-blue-200'
-                                                    : 'bg-white border-slate-100 hover:border-slate-200'
-                                                : 'bg-slate-50/40 border-transparent opacity-40'
+                                            className={`min-h-[75px] rounded-2xl p-1.5 flex flex-col justify-between border transition-all ${
+                                                cell.isCurrentMonth
+                                                    ? isToday
+                                                        ? 'bg-blue-50/50 border-blue-200'
+                                                        : 'bg-white border-slate-100 hover:border-slate-200'
+                                                    : 'bg-slate-50/40 border-transparent opacity-40'
                                             }`}
                                         >
                                             <span
-                                                className={`text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full ${isToday
-                                                    ? 'bg-blue-600 text-white shadow-xs'
-                                                    : cell.isCurrentMonth
-                                                        ? (idx % 7 === 5 || idx % 7 === 6) ? 'text-rose-500' : 'text-slate-800'
-                                                        : 'text-slate-400'
+                                                className={`text-[11px] font-bold w-6 h-6 flex items-center justify-center rounded-full ${
+                                                    isToday
+                                                        ? 'bg-blue-600 text-white shadow-xs'
+                                                        : cell.isCurrentMonth
+                                                            ? (idx % 7 === 5 || idx % 7 === 6) ? 'text-rose-500' : 'text-slate-800'
+                                                            : 'text-slate-400'
                                                 }`}
                                             >
                                                 {cell.dayNumber}
@@ -1084,15 +1099,16 @@ export default function UserProfile() {
                                             setPasswordError("");
                                             setVerifyPassword("");
                                         }}
-                                        className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 cursor-pointer"
+                                        className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="submit"
-                                        className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-200 transition-all cursor-pointer"
+                                        disabled={isVerifying}
+                                        className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md shadow-blue-200 transition-all cursor-pointer disabled:opacity-50"
                                     >
-                                        Continue
+                                        {isVerifying ? "Verifying..." : "Continue"}
                                     </button>
                                 </div>
                             </form>
@@ -1128,8 +1144,8 @@ export default function UserProfile() {
                                             type="text"
                                             value={editForm.phone || ""}
                                             onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                                            placeholder="07XXXXXXXX"
                                             className="w-full text-xs font-semibold px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all"
-                                            required
                                         />
                                     </div>
 
@@ -1145,12 +1161,12 @@ export default function UserProfile() {
                                             <option value="IRBID">Irbid</option>
                                             <option value="ZARQA">Zarqa</option>
                                             <option value="AQABA">Aqaba</option>
-                                            <option value="SALT">Salt</option>
+                                            <option value="BALQA">Salt (Balqa)</option>
                                             <option value="MADABA">Madaba</option>
                                             <option value="JERASH">Jerash</option>
                                             <option value="AJLOUN">Ajloun</option>
                                             <option value="KARAK">Karak</option>
-                                            <option value="TAFILAH">Tafilah</option>
+                                            <option value="TAFILEH">Tafilah</option>
                                             <option value="MAAN">Ma'an</option>
                                             <option value="MAFRAQ">Mafraq</option>
                                         </select>
@@ -1174,7 +1190,7 @@ export default function UserProfile() {
                                             </label>
                                             <input
                                                 type="password"
-                                                placeholder="At least 8 characters"
+                                                placeholder="8-12 characters"
                                                 autoComplete="new-password"
                                                 value={editForm.newPassword || ""}
                                                 onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}

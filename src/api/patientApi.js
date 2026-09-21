@@ -1,4 +1,4 @@
-
+//functions for reviews,cancelling app,wallet,and app details are implemented but do nothing for now
 import { getAuth, saveAuth, clearAuth } from "../auth/authStorage";
 import { refreshAccessToken } from "./authApi";
 
@@ -35,8 +35,9 @@ async function apiFetch(url, options = {}) {
         } catch (refreshErr) {
         clearAuth();
         window.location.href = "/login";
-        throw new Error("Session expired. Please log in again.", { cause: refreshErr });
-    }
+            const err = new Error("Session expired. Please log in again.");
+            err.cause = refreshErr;
+            throw err;    }
     }
 
     const data = await res.json().catch(() => ({}));
@@ -49,32 +50,47 @@ async function apiFetch(url, options = {}) {
 
 function cleanQueryParams(params = {}) {
     if (typeof params === "string") return params;
+
+    const IGNORED_VALUES = new Set([
+        undefined,
+        null,
+        "",
+        "undefined",
+        "null",
+        "ALL",
+        "ALL CITIES",
+        "ALL-CITIES",
+        "ALL SPECIALTIES",
+        "ANYTIME"
+    ]);
+
     const clean = {};
-    Object.entries(params).forEach(([key, value]) => {
-        if (
-            value !== undefined &&
-            value !== null &&
-            value !== "" &&
-            value !== "undefined" &&
-            value !== "null" &&
-            value !== "All-Cities" &&
-            value !== "All Cities" &&
-            value !== "All Specialties" &&
-            value !== "All"
-        ) {
-            clean[key] = value;
+
+    for (const [key, rawValue] of Object.entries(params)) {
+        if (rawValue === undefined || rawValue === null) continue;
+
+        const stringValue = typeof rawValue === "string" ? rawValue.trim() : rawValue;
+        const upperCheck = typeof stringValue === "string" ? stringValue.toUpperCase() : stringValue;
+
+        // Skip if empty or matches any placeholder like "All Cities" or "All Specialties"
+        if (IGNORED_VALUES.has(upperCheck)) {
+            continue;
         }
-    });
+
+        if (key === "city" && typeof stringValue === "string") {
+            clean[key] = stringValue.toUpperCase();
+        } else {
+            clean[key] = stringValue;
+        }
+    }
+
     return new URLSearchParams(clean).toString();
 }
-
 // ── 1. Clinic Discovery Endpoints ─────────────────────────────────────
 export async function searchClinics(params = {}) {
     const queryString = cleanQueryParams(params);
     return apiFetch(`${BASE_URL}/patient/clinics${queryString ? `?${queryString}` : ""}`);
 }
-export const getClinics = searchClinics;
-export const fetchClinics = searchClinics;
 
 export async function getClinicDetails(clinicId) {
     return apiFetch(`${BASE_URL}/patient/clinics/${clinicId}`);
@@ -103,7 +119,6 @@ export async function fetchAvailability({ clinicId, date, doctorId, serviceId, s
         return [];
     }
 }
-export const getAvailability = fetchAvailability;
 
 // ── 3. Appointment Booking Endpoint ──────────────────────────────────
 export async function bookAppointment(payload) {
@@ -118,7 +133,6 @@ export const bookPatientAppointment = bookAppointment;
 export async function getPatientAppointments(scope = "upcoming") {
     return apiFetch(`${BASE_URL}/patient/appointments?scope=${scope}`);
 }
-export const fetchPatientAppointments = getPatientAppointments;
 
 export async function getAppointmentDetails(appointmentId) {
     return apiFetch(`${BASE_URL}/patient/appointments/${appointmentId}`);
@@ -139,8 +153,15 @@ export async function createReview(reviewPayload) {
 }
 
 // ── 6. Patient Favorites ─────────────────────────────────────────────
+//????????????????????????????
 export async function getPatientFavorites() {
-    return apiFetch(`${BASE_URL}/patient/favorites`);
+    const data = await apiFetch(`${BASE_URL}/patient/favorites`);
+    return data.map(doc => ({
+        ...doc,
+        specialtiesList: typeof doc.specialties === 'string'
+            ? doc.specialties.split(',').map(s => s.trim()).filter(Boolean)
+            : (doc.specialties || [])
+    }));
 }
 
 export async function addDoctorToFavorites(doctorId) {
@@ -160,7 +181,6 @@ export async function removeDoctorFromFavorites(doctorId) {
 export async function getMyProfile() {
     return apiFetch(`${BASE_URL}/auth/me`);
 }
-export const getPatientProfile = getMyProfile;
 
 export async function updateMyProfile(profileData) {
     return apiFetch(`${BASE_URL}/auth/me`, {
@@ -168,7 +188,6 @@ export async function updateMyProfile(profileData) {
         body: JSON.stringify(profileData),
     });
 }
-export const updatePatientProfile = updateMyProfile;
 
 // ── 8. Doctor View Endpoints ─────────────────────────────────────────
 export async function getDoctorAppointments(date = null, scope = "upcoming") {
@@ -176,12 +195,10 @@ export async function getDoctorAppointments(date = null, scope = "upcoming") {
     if (date) params.append("date", date);
     return apiFetch(`${BASE_URL}/doctor/appointments?${params.toString()}`);
 }
-export const fetchDoctorAppointments = getDoctorAppointments;
 
 export async function getDoctorSchedule() {
     return apiFetch(`${BASE_URL}/doctor/schedule`);
 }
-export const fetchDoctorSchedule = getDoctorSchedule;
 
 // ── 9. Wallet Endpoint ───────────────────────────────────────────────
 export async function getWallet() {
