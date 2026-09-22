@@ -122,7 +122,7 @@ export async function fetchAvailability({ clinicId, date, doctorId, serviceId, s
 
 // ── 3. Appointment Booking Endpoint ──────────────────────────────────
 export async function bookAppointment(payload) {
-    return apiFetch(`${BASE_URL}/appointments/book`, {
+    return apiFetch(`${BASE_URL}/patient/appointments`, {
         method: "POST",
         body: JSON.stringify(payload),
     });
