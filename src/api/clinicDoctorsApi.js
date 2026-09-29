@@ -11,6 +11,7 @@
 const BASE_URL = "http://localhost:8080/api/clinic";
 
 import { getToken } from "../auth/authStorage";
+import { clinicFetch } from "./clinicClient";
 import { localToUtcSpecific, utcToLocalSpecific } from "../utils/timezone";
 
 function authHeaders() {
@@ -24,12 +25,12 @@ function authHeaders() {
 
 /** Fetch the list of doctors for this clinic. */
 export async function fetchDoctors() {
-    const res = await fetch(`${BASE_URL}/doctors`, { headers: authHeaders() });
+    const res = await clinicFetch(`${BASE_URL}/doctors`);
     if (!res.ok) throw new Error("Failed to fetch doctors");
     const data = await res.json();
     return data.map(d => ({
         ...d,
-        id: d.doctorUserId, // Map backend's doctorUserId to id for UI compatibility
+        id: d.doctorUserId,
     }));
 }
 
