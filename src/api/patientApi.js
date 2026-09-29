@@ -189,6 +189,13 @@ export async function updateMyProfile(profileData) {
     });
 }
 
+export async function verifyCurrentPassword(password) {
+    return apiFetch(`${BASE_URL}/auth/verify-password`, {
+        method: "POST",
+        body: JSON.stringify({ password }),
+    });
+}
+
 // ── 8. Doctor View Endpoints ─────────────────────────────────────────
 export async function getDoctorAppointments(date = null, scope = "upcoming") {
     const params = new URLSearchParams({ scope });

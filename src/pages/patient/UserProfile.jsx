@@ -7,6 +7,7 @@ import { login } from '../../api/authApi';
 import {
     getMyProfile,
     updateMyProfile,
+    verifyCurrentPassword,
     getPatientFavorites,
     addDoctorToFavorites,
     removeDoctorFromFavorites,
@@ -328,14 +329,11 @@ export default function UserProfile() {
 
         setIsVerifying(true);
         try {
-            await login({
-                email: userData.email,
-                password: verifyPassword
-            });
+            await verifyCurrentPassword(verifyPassword);
 
             setEditStep('form');
             setPasswordError("");
-        } catch {
+        } catch (err) {
             setPasswordError("Incorrect password. Please enter your valid account password.");
         } finally {
             setIsVerifying(false);
